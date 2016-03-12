@@ -41,7 +41,7 @@ export class ReactiveObject {
      * @param property The name of the property whose value should be retrieved. 
      */
     public get<T>(property: string): T | any {
-        return this[property];
+        return this[property] || null;
     }
 
     /**
@@ -66,7 +66,7 @@ export class ReactiveObject {
                 console.log(e.propertyName + ":" + prop);
                 return e.propertyName == prop;
             });
-            if(emitCurrentVal) {
+            if (emitCurrentVal) {
                 return Observable.fromArray([this.createPropertyChangedEventArgs(prop, this.get(prop))]).concat(observable);
             } else {
                 return observable;
@@ -84,14 +84,14 @@ export class ReactiveObject {
                 // and subscribe to the rest of the properties on that object.
                 // Switch between the observed values, so that only the most recent object graph
                 // property changes are observed.
-                
+
                 // Store the number of times that the property has been changed at this level.
                 // This way, we can be sure about whether to emit the current value or not, based on whether
                 // we have observed 2 or more events at this level.
                 var observationCount: number = 0;
                 return this.whenSingle(firstProp, true).map(change => {
                     var obj: ReactiveObject = change.newPropertyValue;
-                    
+
                     observationCount++;
                     return obj.whenSingle(propertiesWithoutFirst, emitCurrentVal || observationCount > 1);
                 }).switch();
@@ -179,7 +179,7 @@ export class ReactiveObject {
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
      * @param properties The names of the properties.
-     * @param map A function that, given the event arguments for the properties, maps to the desired return values.
+     * @param map A function that, given the event arguments for the properties, maps to the desired return value.
      */
     public whenAny<TResult>(
         properties: string[] | string,
@@ -191,10 +191,35 @@ export class ReactiveObject {
             var propertyList: string[] = <string[]>properties;
 
             var observableList = propertyList.map(prop => {
-                console.log("Map");
                 return this.whenSingle(prop);
+            }).filter(o => o != null);
+            if (map) {
+                return Observable.combineLatest(...observableList, map);
+            } else {
+                return Observable.combineLatest(...observableList);
+            }
+        }
+    }
+
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @param properties The names of the properties to watch.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<TResult>(
+        properties: string | string[],
+        map?: (...values: any[]) => TResult
+    ): Observable<TResult> {
+        if (typeof properties === "string") {
+            var mapFunc = map || ((...values: any[]) => values[0]);
+            return this.whenAny<TResult, TResult>(properties).map((e: PropertyChangedEventArgs<any>) => mapFunc(e.newPropertyValue));
+        }
+        else {
+            var multiMapFunc = map || ((...values: any[]) => values);            
+            return this.whenAny(<string[]>properties, (...events: PropertyChangedEventArgs<any>[]) => {
+                var a = events.map(e => e.newPropertyValue);
+                return multiMapFunc(...a);
             });
-            return Observable.combineLatest(...observableList, map);
         }
     }
 }
