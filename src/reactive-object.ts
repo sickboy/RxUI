@@ -99,18 +99,6 @@ export class ReactiveObject {
                 throw new Error(`Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '${firstProp}', is not a Reactive Object when it should be.`);
             }
         }
-
-
-        // child.child2.prop
-        // observe child
-        // observe child2
-        // observe prop (pipe)
-        // newChild
-        // observe newChild.child2
-        // observe prop (pipe)
-        // newChild2
-        // observe prop (pipe)
-
     }
 
     /**
