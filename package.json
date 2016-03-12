@@ -1,6 +1,6 @@
 {
   "name": "rxui",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A MVVM framework that integrates Reactive Extensions for JavaScript. Inspired by ReactiveUI for .Net.",
   "scripts": {
     "build": "tsc",

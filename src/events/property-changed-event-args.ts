@@ -3,7 +3,7 @@ import {EventArgs} from "./event-args";
 /**
  * Defines a class that represents the arguments for events that notify when properties change.
  */
-export class PropertyChangedEventArgs extends EventArgs {
+export class PropertyChangedEventArgs<T> extends EventArgs {
     
     private _propertyName: string;
     private _newPropertyValue: any;
