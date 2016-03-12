@@ -131,43 +131,41 @@ describe("ReactiveObject", () => {
 
             obj.get("child").get("child2").get("child3").get("child4").set("prop", "value");
         });
-
+        
         it("should observe property events for the swapped children", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
             var child: ReactiveObject = new ReactiveObject();
             var child2: ReactiveObject = new ReactiveObject();
             var child3: ReactiveObject = new ReactiveObject();
             var child4: ReactiveObject = new ReactiveObject();
-
+            
             var newChild2: ReactiveObject = new ReactiveObject();
             var newChild3: ReactiveObject = new ReactiveObject();
             var newChild4: ReactiveObject = new ReactiveObject();
-
+            
             obj.set("child", child);
             child.set("child2", child2);
             child2.set("child3", child3);
             child3.set("child4", child4);
-
+            
             newChild2.set("child3", newChild3);
             newChild3.set("child4", newChild4);
             newChild4.set("prop", "newValue");
-            var num = 0;
-            obj.whenAny("child.child2.child3.child4.prop").take(2).subscribe((e: PropertyChangedEventArgs<any>) => {
-                //expect(events.length).to.equal(2);
-                num++;
-                if (num == 1) {
-                    expect(e).to.not.be.null;
-                    expect(e.propertyName).to.equal("prop");
-                    expect(e.sender).to.equal(child4);
-                    expect(e.newPropertyValue).to.equal("value");
-                }
-                else if (num == 2) {
-                    expect(e).to.not.be.null;
-                    expect(e.propertyName).to.equal("prop");
-                    expect(e.sender).to.equal(newChild4);
-                    expect(e.newPropertyValue).to.equal("newValue");
-                    done();
-                }
+
+            obj.whenAny("child.child2.child3.child4.prop").take(2).bufferTime(10).subscribe((events: PropertyChangedEventArgs<any>[]) => {
+                expect(events.length).to.equal(2);
+                
+                expect(events[0]).to.not.be.null;
+                expect(events[0].propertyName).to.equal("prop");
+                expect(events[0].sender).to.equal(child4);
+                expect(events[0].newPropertyValue).to.equal("value");
+                
+                expect(events[1]).to.not.be.null;
+                expect(events[1].propertyName).to.equal("prop");
+                expect(events[1].sender).to.equal(newChild4);
+                expect(events[1].newPropertyValue).to.equal("newValue");
+                
+                done();
             }, err => done(err));
 
             child4.set("prop", "value");
