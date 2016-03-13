@@ -13,15 +13,14 @@ describe("invokeCommand()", () => {
         
         var obj = new ReactiveObject();
         
-        var observable = obj.whenAnyValue<string>("prop");
-        
         var command = ReactiveCommand.createFromObservable(a => {
             callCount++;
             return Observable.of(true);
-        }, observable.map(val => val === "value")); // only execute the command when "prop" has been changed to "value"
+        }, obj.whenAnyValue<string>("prop").map(val => val === "value")); // only execute the command when "prop" has been changed to "value"
         
         obj.set("command", command);
-        obj.invokeCommandWhen(observable, command).subscribe();    
+        
+        obj.invokeCommandWhen(obj.whenAnyValue<string>("prop"), command).subscribe();    
         
         obj.set("prop", "val");
         expect(callCount).to.equal(0);
@@ -39,9 +38,7 @@ describe("invokeCommand()", () => {
         });
         
         var obj = new ReactiveObject();
-        
-        var observable = obj.whenAnyValue<string>("prop");
-        obj.invokeCommandWhen(observable, command).subscribe();    
+        obj.invokeCommandWhen(obj.whenAnyValue<string>("prop"), command).subscribe();    
         
         obj.set("prop", "value");
         expect(callCount).to.equal(1);
