@@ -5,7 +5,7 @@ import {PropertyChangedEventArgs} from "../src/events/property-changed-event-arg
 import {expect} from "chai";
 
 describe("ReactiveObject", () => {
-    describe(".set()", () => {
+    describe("#set()", () => {
         it("should change the value retrieved by .get()", () => {
             var obj: ReactiveObject = new ReactiveObject();
 
@@ -33,7 +33,7 @@ describe("ReactiveObject", () => {
         });
     });
 
-    describe(".get(prop)", () => {
+    describe("#get(prop)", () => {
         it("should return the value at obj[prop]", () => {
             var obj: ReactiveObject = new ReactiveObject();
             obj["prop"] = "value";
@@ -48,7 +48,7 @@ describe("ReactiveObject", () => {
         });
     });
 
-    describe(".emitPropertyChanged()", () => {
+    describe("#emitPropertyChanged()", () => {
         it("should emit new PropertyChangedEventArgs when called", (done) => {
             class MyReactiveObj extends ReactiveObject {
                 public triggerChangeEvent(): void {
@@ -87,7 +87,7 @@ describe("ReactiveObject", () => {
         });
     });
 
-    describe(".whenAny(prop)", () => {
+    describe("#whenAny(prop)", () => {
         it("should return an observable", () => {
             var obj: ReactiveObject = new ReactiveObject();
             var observable = obj.whenAny("prop");
@@ -189,7 +189,7 @@ describe("ReactiveObject", () => {
         });
     });
 
-    describe(".whenAny(prop1, prop2, prop3)", () => {
+    describe("#whenAny(prop1, prop2, prop3)", () => {
         it("should observe property changes for multiple children", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
             obj.set("prop1", "prop1Value");
@@ -252,7 +252,7 @@ describe("ReactiveObject", () => {
         });
     });
 
-    describe(".whenAnyValue(prop)", () => {
+    describe("#whenAnyValue(prop)", () => {
         it("should return an observable", () => {
             var obj: ReactiveObject = new ReactiveObject();
             var observable = obj.whenAnyValue("prop");

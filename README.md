@@ -20,22 +20,36 @@ npm install rxui --save
 ### TypeScript (Recommended)
 
 ```
-import {ReactiveObject} from "rxui/ReactiveObject";
-import {ISearchService} from "wherever/search/service/is";
+import {ReactiveObject} from "rxui/reactive-object";
+import {ReactiveCommand} from "rxui/reactive-command";
+import {Observable} from "rxjs/Observable";
 
-class SearchViewModel extends ReactiveObject {
-    public get searchQuery(): string {
-        return this.get("searchQuery");   
-    }
+// Example from ReactiveUI Documentation (http://docs.reactiveui.net/en/user-guide/commands/an-example.html)
+class LoginViewModel extends ReactiveObject {
     
-    public set searchQuery(value: string): void {
-        this.set("searchQuery", value);
-    }
+    public loginCommand: ReactiveCommand<boolean>;
+    public resetCommand: ReactiveCommand<boolean>;
     
-    constructor(private searchService: ISearchService) {
-        var canSearch = this.whenAny("searchQuery", q => q.newPropertyValue != "");
+    constructor() {
+        var canLogin = this.whenAnyValue<string, string, boolean>(
+            "userName",
+            "password",
+            (userName, password) => userName && password
+        );
         
-        // TODO:
+        this.loginCommand = ReactiveCommand.createFromObservable(
+            (a) => this.loginAsync(),
+            canLogin
+        );
+        
+        this.resetCommand = ReactiveCommand.create(() => {
+            this.set("userName", "");
+            this.set("password", "");
+        });
+    }
+    
+    loginAsync(): Observable<boolean> {
+        // Cool login logic   
     }
 }
 ```
