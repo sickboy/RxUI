@@ -65,9 +65,27 @@ export class ReactiveCommand<TResult> {
     }
 
     /**
+     * Creates a new Reactive Command that can run the given synchronous task when executed.
+     * @param task A function that executes some synchronous task and returns an optional value.
+     * @param canRun An Observable whose stream of values determine whether the command is allowed to run at a certain time.
+     * @param scheduler The scheduler that all of the results from the task should be observed on.
+     */
+    public static create<TResult>(task: (args) => (TResult | void), canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {
+        return new ReactiveCommand((args) => {
+            var result = task(args);
+            if(typeof result !== "undefined") {
+                return Observable.of(result);
+            } else {
+                // TODO: replace with Unit
+                return Observable.of(null);
+            }
+        }, ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
+    }
+
+    /**
      * Creates a new Reactive Command that can run the given task when executed.
      * @param task A function that returns a promise that completes when the task has finished executing.
-     * @param canRun An observable that resolves whenever the command is allowed to run.
+     * @param canRun An Observable whose stream of values determine whether the command is allowed to run at a certain time.
      * @param scheduler The scheduler that all of the results from the task should be observed on.
      */
     public static createFromTask<TResult>(task: (args) => Promise<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {
@@ -77,7 +95,7 @@ export class ReactiveCommand<TResult> {
     /**
      * Creates a new Reactive Command that can run the given task when executed.
      * @param task A function that returns an observable that completes when the task has finished executing.
-     * @param canRun An observable that resolves whenever the command is allowed to run.
+     * @param canRun An Observable whose stream of values determine whether the command is allowed to run at a certain time.
      * @param scheduler The scheduler that all of the results from the task should be observed on.
      */
     public static createFromObservable<TResult>(task: (args) => Observable<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {

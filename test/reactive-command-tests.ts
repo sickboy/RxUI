@@ -4,7 +4,31 @@ import {Observable} from "rxjs/Rx";
 import {expect} from "chai";
 
 describe("ReactiveCommand", () => {
-    describe(".canExecute", () => {
+    describe(".createFromTask()", () => {
+        it("should return a command that resolves with values from the promise", (done) => {
+            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromTask((a) => {
+                return Promise.resolve(true);
+            });
+            
+            command.executeAsync().take(1).subscribe(result => {
+                expect(result).to.be.true;
+                done();
+            }, err => done(err));
+        });
+    });
+    describe(".create()", () => {
+       it("should return a command that resolves with returned values from the task", (done) => {
+           var command: ReactiveCommand<string> = ReactiveCommand.create((a) => {
+              return "value"; 
+           });
+           
+           command.executeAsync().take(1).subscribe(result => {
+              expect(result).to.equal("value");
+              done(); 
+           }, err => done(err));
+       });
+    });
+    describe("#canExecute", () => {
         it("should default to false", (done) => {
             var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty());
 
@@ -40,7 +64,7 @@ describe("ReactiveCommand", () => {
         });
     });
 
-    describe(".isExecuting", () => {
+    describe("#isExecuting", () => {
         it("should default to false", (done) => {
             var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty());
 
@@ -64,7 +88,7 @@ describe("ReactiveCommand", () => {
         });
     });
 
-    describe(".executeAsync()", () => {
+    describe("#executeAsync()", () => {
         it("should run the configured task on the given scheduler", (done) => {
             var scheduler = new TestScheduler((actual, expected) => {
                 expect(actual).to.deep.equal(expected);

@@ -27,7 +27,7 @@ describe("invokeCommand()", () => {
         expect(callCount).to.equal(0);
         
         obj.set("prop", "value");
-        expect(callCount).to.equal(1);   
+        expect(callCount).to.equal(1);
     });
     it("should call executeAsync() on the given command with the observed value as the argument", () => {
         var callCount = 0;
