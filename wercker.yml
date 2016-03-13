@@ -3,7 +3,7 @@
 # Read more about containers on our dev center
 # http://devcenter.wercker.com/docs/containers/index.html
 box: 
-  id: nodesource/trusty:4.4.0
+  id: nodesource/trusty
   env:
     NODE_ENV: test
     
