@@ -17,7 +17,7 @@ export class ReactiveCommand<TResult> {
     public get isExecuting(): Observable<boolean> {
         return this._isExecuting;
     }
-    
+
     /**
      * Gets an observable that represents whether this command can execute.
      */
@@ -39,8 +39,7 @@ export class ReactiveCommand<TResult> {
             .combineLatest(this._isExecuting, (canRun, isExecuting) => {
                 return canRun && !isExecuting;
             })
-            .distinctUntilChanged()
-            .repeat(1);
+            .distinctUntilChanged();
     }
 
     /**
@@ -51,18 +50,17 @@ export class ReactiveCommand<TResult> {
     }
 
     /**
-     * Executes this command.
+     * Executes this command asynchronously.
      */
-    public execute(arg): Observable<TResult> {
+    public executeAsync(arg: any = null): Observable<TResult> {
         this.executing.next(true);
         var observable = this.task(arg);
-        var subscriber = observable.subscribe(result => {
+        observable.subscribe(result => {
             this.subject.next(result);
         }, err => {
             this.subject.error(err);
             this.executing.next(false);
         }, () => {
-            subscriber.unsubscribe();
             this.executing.next(false);
         });
         return observable;

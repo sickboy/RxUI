@@ -63,7 +63,6 @@ export class ReactiveObject {
         if (children.length === 1) {
             var child: ReactiveObject = this;
             var observable = child.propertyChanged.filter(e => {
-                console.log(e.propertyName + ":" + prop);
                 return e.propertyName == prop;
             });
             if (emitCurrentVal) {
@@ -76,7 +75,6 @@ export class ReactiveObject {
             var firstProp = children[0]; // = "first"
             // All of the other properties = "second.third"
             var propertiesWithoutFirst = prop.substring(firstProp.length + 1);
-            console.log("Properties without first: " + propertiesWithoutFirst);
             // Get the object/value that is at the "first" key of this object.
             var firstChild: ReactiveObject = this.get(firstProp);
             if (typeof firstChild.whenSingle === "function") {
