@@ -105,7 +105,7 @@ export class ReactiveCommand<TResult> {
     /**
      * Executes this command asynchronously.
      * Note that this method does not check whether the command is currently executable.
-     * Use ReactiveObject methods such as invokeCommand
+     * Use ReactiveObject methods such as `invokeCommandWhen()` to take advantage of canExecute. 
      */
     public executeAsync(arg: any = null): Observable<TResult> {
         this.executing.next(true);

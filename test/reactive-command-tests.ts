@@ -15,6 +15,28 @@ describe("ReactiveCommand", () => {
                 done();
             }, err => done(err));
         });
+        it("should return a command that resolves with errors from the promise", (done) => {
+            var command: ReactiveCommand<void> = ReactiveCommand.createFromTask((a) => {
+               return Promise.reject("Error"); 
+            });
+            
+            command.executeAsync().take(1).subscribe(null, err => {
+                expect(err).to.equal("Error");
+                done()
+            });
+        });
+        it("should return a command that resolves with errors from the task execution", (done) => {
+            var error = new Error("Error"); 
+            var task: any = (arg) => {
+                throw error;
+            };            
+            var command: ReactiveCommand<void> = ReactiveCommand.createFromTask<void>(task);
+            
+            command.executeAsync().take(1).subscribe(null, err => {
+                expect(err).to.equal(error);
+                done();
+            });
+        });
     });
     describe(".create()", () => {
        it("should return a command that resolves with returned values from the task", (done) => {
