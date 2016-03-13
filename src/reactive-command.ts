@@ -1,5 +1,7 @@
 import {Observable} from "rxjs/Observable";
 import {Subject} from "rxjs/Subject";
+import {Scheduler} from "rxjs/Scheduler";
+import {RxApp} from "./rx-app";
 
 /**
  * Defines a class that represents a command that can run operations in the background.
@@ -8,6 +10,7 @@ export class ReactiveCommand<TResult> {
 
     private subject: Subject<TResult>;
     private executing: Subject<boolean>;
+    private _results: Observable<TResult>;
     private _canExecute: Observable<boolean>;
     private _isExecuting: Observable<boolean>;
 
@@ -29,8 +32,18 @@ export class ReactiveCommand<TResult> {
      * Creates a new Reactive Command.
      * @param canRun An observable that determines whether the given task is allowed to run at a given moment.
      * @param task A function that returns an observable that represents the asynchronous operation.
+     * @param scheduler The scheduler that all of the results should be observed on.
      */
-    constructor(private canRun: Observable<boolean>, private task: (args) => Observable<TResult>) {
+    constructor(private task: (args) => Observable<TResult>, private canRun: Observable<boolean>, private scheduler: Scheduler) {
+        if (!task) {
+            throw new Error("The task parameter must be supplied");
+        }
+        if (!canRun) {
+            throw new Error("The canRun parameter must be supplied");
+        }
+        if (!scheduler) {
+            throw new Error("The scheduler parameter must be supplied");
+        }
         this.subject = new Subject<TResult>();
         this.executing = new Subject<boolean>();
         this._isExecuting = this.executing.startWith(false).distinctUntilChanged();
@@ -40,13 +53,35 @@ export class ReactiveCommand<TResult> {
                 return canRun && !isExecuting;
             })
             .distinctUntilChanged();
+        this._results = this.subject.observeOn(scheduler);
+    }
+
+    private static defaultScheduler(scheduler: Scheduler): Scheduler {
+        return scheduler || RxApp.mainThreadScheduler;
+    }
+
+    private static defaultCanRun(canRun: Observable<boolean>): Observable<boolean> {
+        return canRun || Observable.of(true);
     }
 
     /**
      * Creates a new Reactive Command that can run the given task when executed.
+     * @param task A function that returns a promise that completes when the task has finished executing.
+     * @param canRun An observable that resolves whenever the command is allowed to run.
+     * @param scheduler The scheduler that all of the results from the task should be observed on.
      */
-    public static createAsyncTask<TResult>(canRun: Observable<boolean>, task: (args) => Promise<TResult>): ReactiveCommand<TResult> {
-        return new ReactiveCommand(canRun, (args) => Observable.fromPromise(task(args)));
+    public static createFromTask<TResult>(task: (args) => Promise<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {
+        return new ReactiveCommand((args) => Observable.fromPromise(task(args)), ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
+    }
+
+    /**
+     * Creates a new Reactive Command that can run the given task when executed.
+     * @param task A function that returns an observable that completes when the task has finished executing.
+     * @param canRun An observable that resolves whenever the command is allowed to run.
+     * @param scheduler The scheduler that all of the results from the task should be observed on.
+     */
+    public static createFromObservable<TResult>(task: (args) => Observable<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {
+        return new ReactiveCommand(task, ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
     }
 
     /**
@@ -54,7 +89,17 @@ export class ReactiveCommand<TResult> {
      */
     public executeAsync(arg: any = null): Observable<TResult> {
         this.executing.next(true);
-        var observable = this.task(arg);
+        var observable = Observable.create(sub => {
+            try {
+                var o = this.task(arg);
+                var subscription = o.subscribe(sub);
+                return () => {
+                    subscription.unsubscribe();
+                };
+            } catch (error) {
+                sub.error(error);
+            }
+        });
         observable.subscribe(result => {
             this.subject.next(result);
         }, err => {
@@ -63,13 +108,13 @@ export class ReactiveCommand<TResult> {
         }, () => {
             this.executing.next(false);
         });
-        return observable;
+        return observable.observeOn(this.scheduler);
     }
 
     /**
-     * Gets the observable that represents the result of this command's operations.
+     * Gets the observable that represents the results of this command's operations.
      */
-    public get observable(): Observable<TResult> {
-        return this.subject;
+    public get results(): Observable<TResult> {
+        return this._results;
     }
 }
