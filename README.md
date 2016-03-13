@@ -19,7 +19,7 @@ npm install rxui --save
 
 ### TypeScript (Recommended)
 
-```
+```TypeScript
 import {ReactiveObject} from "rxui/reactive-object";
 import {ReactiveCommand} from "rxui/reactive-command";
 import {Observable} from "rxjs/Observable";
