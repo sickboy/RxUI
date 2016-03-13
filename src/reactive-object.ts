@@ -68,7 +68,7 @@ export class ReactiveObject {
                 return e.propertyName == prop;
             });
             if (emitCurrentVal) {
-                return Observable.fromArray([this.createPropertyChangedEventArgs(prop, this.get(prop))]).concat(observable);
+                return Observable.of(this.createPropertyChangedEventArgs(prop, this.get(prop))).concat(observable);
             } else {
                 return observable;
             }
@@ -107,7 +107,7 @@ export class ReactiveObject {
      * @param map A function that, given the event arguments for the property, maps to the desired return values.
      */
     public whenAny<T1, TResult>(
-        properties: string,
+        first: string | ((o: this) => T1),
         map?: (_1: PropertyChangedEventArgs<T1>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
@@ -116,7 +116,8 @@ export class ReactiveObject {
      * @param map A function that, given the event arguments for the properties, maps to the desired return values.
      */
     public whenAny<T1, T2, TResult>(
-        properties: string[],
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
         map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
@@ -125,7 +126,9 @@ export class ReactiveObject {
      * @param map A function that, given the event arguments for the properties, maps to the desired return values.
      */
     public whenAny<T1, T2, T3, TResult>(
-        properties: string[],
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
         map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
@@ -134,7 +137,10 @@ export class ReactiveObject {
      * @param map A function that, given the event arguments for the properties, maps to the desired return values.
      */
     public whenAny<T1, T2, T3, T4, TResult>(
-        properties: string[],
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
         map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
@@ -143,7 +149,11 @@ export class ReactiveObject {
      * @param map A function that, given the event arguments for the properties, maps to the desired return values.
      */
     public whenAny<T1, T2, T3, T4, T5, TResult>(
-        properties: string[],
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
+        fifth: string | ((o: this) => T5),
         map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
@@ -152,7 +162,12 @@ export class ReactiveObject {
      * @param map A function that, given the event arguments for the properties, maps to the desired return values.
      */
     public whenAny<T1, T2, T3, T4, T5, T6, TResult>(
-        properties: string[],
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
+        fifth: string | ((o: this) => T5),
+        sixth: string | ((o: this) => T6),
         map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>, _6: PropertyChangedEventArgs<T6>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
@@ -161,32 +176,69 @@ export class ReactiveObject {
      * @param map A function that, given the event arguments for the properties, maps to the desired return values.
      */
     public whenAny<T1, T2, T3, T4, T5, T6, T7, TResult>(
-        properties: string[],
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
+        fifth: string | ((o: this) => T5),
+        sixth: string | ((o: this) => T6),
+        seventh: string | ((o: this) => T7),
         map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>, _6: PropertyChangedEventArgs<T6>, _7: PropertyChangedEventArgs<T7>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
      * @param properties The names of the properties.
-     * @param map A function that, given the event arguments for the properties, maps to the desired return value.
+     * @param map A function that, given the event arguments for the properties, maps to the desired return values.
      */
     public whenAny<TResult>(
-        properties: string[] | string,
-        map?: (...values: PropertyChangedEventArgs<any>[]) => TResult
+        ...args: (((o: this) => any) | string | ((...a: PropertyChangedEventArgs<any>[]) => TResult))[]
     ): Observable<TResult | PropertyChangedEventArgs<any>> {
-        if (typeof properties === "string") {
-            return this.whenSingle(properties);
-        } else {
-            var propertyList: string[] = <string[]>properties;
+        var finalProperties: string[] = [];
+        var map: Function = this.getMapFunction(args);
 
-            var observableList = propertyList.map(prop => {
-                return this.whenSingle(prop);
-            }).filter(o => o != null);
-            if (map) {
-                return Observable.combineLatest(...observableList, map);
-            } else {
-                return Observable.combineLatest(...observableList);
+        function iterateProperties(properties: any[]) {
+            properties.forEach((p, i) => {
+                var type = typeof p;
+                if (type === "string") {
+                    finalProperties.push(p);
+                } else if (type === "function") {
+                    // handle lambda function
+                } else if (Array.isArray(p)) {
+                    iterateProperties(p);
+                }
+            });
+        }
+        iterateProperties(map ? args.slice(0, args.length) : args);
+        var observableList = finalProperties.map(prop => {
+            return this.whenSingle(prop);
+        }).filter(o => o != null);
+        if (map) {
+            return Observable.combineLatest(...observableList, map);
+        } else {
+            return Observable.combineLatest(...observableList, (...events: PropertyChangedEventArgs<any>[]): any => {
+                if (events.length == 1) {
+                    return events[0];
+                } else {
+                    return events;
+                }
+            });
+        }
+    }
+
+    private getMapFunction(values: any[]): Function {
+        var mapFunction: Function = null;
+        var lastArg: any = values[values.length - 1];
+        if (typeof lastArg === "function") {
+            try {
+                var propName = lastArg();
+                if (!propName || typeof propName !== "string") {
+                    mapFunction = lastArg;
+                }
+            } catch (ex) {
+                mapFunction = lastArg;
             }
         }
+        return mapFunction;
     }
 
     /**
@@ -195,20 +247,22 @@ export class ReactiveObject {
      * @map A function that, given the values for the properties, maps to the desired return value.
      */
     public whenAnyValue<TResult>(
-        properties: string | string[],
-        map?: (...values: any[]) => TResult
+        ...args: (((o: this) => any) | string | ((...a: any[]) => TResult))[]
     ): Observable<TResult> {
-        if (typeof properties === "string") {
-            var mapFunc = map || ((...values: any[]) => values[0]);
-            return this.whenAny<TResult, TResult>(properties).map((e: PropertyChangedEventArgs<any>) => mapFunc(e.newPropertyValue));
-        }
-        else {
-            var multiMapFunc = map || ((...values: any[]) => values);
-            return this.whenAny(<string[]>properties, (...events: PropertyChangedEventArgs<any>[]) => {
-                var a = events.map(e => e.newPropertyValue);
-                return multiMapFunc(...a);
-            });
-        }
+
+        var mapFunction = this.getMapFunction(args);
+        var whenAnyArgs: any = mapFunction ? args.slice(0, args.length) : args;
+
+        return this.whenAny(whenAnyArgs, (...events: PropertyChangedEventArgs<any>[]) => {
+            var eventValues = events.map(e => e.newPropertyValue);
+            if(mapFunction) {
+                return mapFunction(...eventValues);
+            } else if(eventValues.length == 1) {
+                return eventValues[0];
+            } else {
+                return eventValues;
+            }
+        });
     }
 
     public when<T>(observable: string | Observable<T>): Observable<T> {

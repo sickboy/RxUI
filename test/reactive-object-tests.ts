@@ -87,6 +87,39 @@ describe("ReactiveObject", () => {
         });
     });
 
+    describe("#whenAny(lambda)", () => {
+        class MyObject extends ReactiveObject {
+            public get prop(): MyOtherObject {
+                return this.get("prop");
+            }
+            public set prop(val: MyOtherObject) {
+                this.set("prop", val);
+            }
+            
+            public get otherProp(): string {
+                return this.get("otherProp");
+            }
+            public set otherProp(val: string) {
+                this.set("otherProp", val);
+            }
+        }
+        
+        class MyOtherObject extends ReactiveObject {
+            public get otherProp(): string {
+                return this.get("otherProp");
+            }
+            public set otherProp(val: string) {
+                this.set("otherProp", val);
+            }
+        }
+        
+        it("should return an observable", () => {
+            var obj: MyObject = new MyObject();
+            var observable = obj.whenAny(o => o.prop.otherProp);
+            expect(observable).to.be.instanceOf(Observable);            
+        });
+    });
+
     describe("#whenAny(prop)", () => {
         it("should return an observable", () => {
             var obj: ReactiveObject = new ReactiveObject();
@@ -196,7 +229,7 @@ describe("ReactiveObject", () => {
             obj.set("prop2", "prop2Value");
             obj.set("prop3", "prop3Value");
 
-            obj.whenAny<string, string, string, any>(["prop1", "prop2", "prop3"]).subscribe((events: PropertyChangedEventArgs<any>[]) => {
+            obj.whenAny<string, string, string, any>("prop1", "prop2", "prop3").subscribe((events: PropertyChangedEventArgs<any>[]) => {
                 expect(events.length).to.equal(3);
                 expect(events[0].propertyName).to.equal("prop1");
                 expect(events[1].propertyName).to.equal("prop2");
@@ -224,7 +257,7 @@ describe("ReactiveObject", () => {
             obj.set("prop2", "prop2Value");
             obj.set("prop3", "prop3Value");
 
-            obj.whenAny<string, string, string, any>(["prop1", "prop2", "prop3"], (prop1, prop2, prop3) => {
+            obj.whenAny<string, string, string, any>("prop1", "prop2", "prop3", (prop1, prop2, prop3) => {
                 return {
                     prop1,
                     prop2,
@@ -274,7 +307,7 @@ describe("ReactiveObject", () => {
         it("should observe multiple property values for the given property names", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
-            obj.whenAnyValue<string>(["prop", "prop2"]).subscribe(values => {
+            obj.whenAnyValue<string[]>("prop", "prop2").subscribe(values => {
                 expect(values.length).to.equal(2);
                 expect(values[0]).to.equal("value");
                 expect(values[1]).to.equal("value2");
