@@ -1,5 +1,7 @@
 import {Observable, Subject, Subscription} from "rxjs/Rx";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
+import {invokeCommand} from "./operator/invoke-command";
+import {ReactiveCommand} from "./reactive-command";
 
 /**
  * Defines a class that represents a reactive object.
@@ -201,11 +203,34 @@ export class ReactiveObject {
             return this.whenAny<TResult, TResult>(properties).map((e: PropertyChangedEventArgs<any>) => mapFunc(e.newPropertyValue));
         }
         else {
-            var multiMapFunc = map || ((...values: any[]) => values);            
+            var multiMapFunc = map || ((...values: any[]) => values);
             return this.whenAny(<string[]>properties, (...events: PropertyChangedEventArgs<any>[]) => {
                 var a = events.map(e => e.newPropertyValue);
                 return multiMapFunc(...a);
             });
         }
+    }
+
+    public when<T>(observable: string | Observable<T>): Observable<T> {
+        if (typeof observable === "string") {
+            return this.whenSingle(observable, true).map(e => <Observable<T>>e.newPropertyValue).switch();
+        } else {
+            return observable;
+        }
+    }
+
+    /**
+     * Attempts to invoke the given command when the given Observable resolves with a new value.
+     * The command will not be invoked unless it can execute.
+     * Returns a cold Observable that resolves with the results of the executions.
+     * The returned Observable MUST be subscribed to in order for the command to execute. 
+     * 
+     * @param observable The Observable object that should be used as the trigger for the command. 
+     *                   Additionally, if a property name is passed in, the most recent Observable stored at that property is used.
+     * @param command The ReactiveCommand object that should be executed. 
+     *                If a property name is passed in, the most recent command stored at that property is used.
+     */
+    public invokeCommandWhen<T>(observable: string | Observable<any>, command: string | ReactiveCommand<T>): Observable<T> {
+        return invokeCommand(this.when(observable), this, command);
     }
 }

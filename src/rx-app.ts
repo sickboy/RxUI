@@ -13,4 +13,11 @@ export class RxApp {
         return Schedulers.queue;
     }
     
+    /**
+     * Gets a scheduler that executes work as soon as it is scheduled.
+     */
+    public static get immediateScheduler(): Scheduler {
+        return Schedulers.asap;
+    }
+    
 }
