@@ -31,25 +31,50 @@ class LoginViewModel extends ReactiveObject {
     public resetCommand: ReactiveCommand<boolean>;
     
     constructor() {
-        var canLogin = this.whenAnyValue<string, string, boolean>(
-            "userName",
-            "password",
+        // This is a strongly-typed observable
+        // that notifies observers whether the user can login.
+        var canLogin = this.whenAnyValue(
+            vm => vm.canLogin,
+            vm => vm.password,
             (userName, password) => userName && password
         );
         
-        this.loginCommand = ReactiveCommand.createFromObservable(
+        // Creates a command from a function that returns a promise.
+        // This command is also strongly-typed, so observed values
+        // will see the same results that are returned from this.loginAsync().
+        this.loginCommand = ReactiveCommand.createFromTask(
             (a) => this.loginAsync(),
             canLogin
         );
         
+        // Creates a synchronous command that just clears the userName and
+        // password fields when executed. 
         this.resetCommand = ReactiveCommand.create(() => {
-            this.set("userName", "");
-            this.set("password", "");
+            this.userName = "";
+            this.password = "";
         });
     }
     
-    loginAsync(): Observable<boolean> {
+    loginAsync(): Promise<boolean> {
         // Cool login logic   
+    }
+    
+    // Helper getters and setters that provide us
+    // with good type-inference from TypeScript's compiler
+    public get userName(): string {
+        return this.get("userName");
+    }
+    
+    public set userName(val: string) {
+        return this.set("userName", val);
+    }
+    
+    public get password(): string {
+        this.get("password");
+    }
+    
+    public set password(val: string) {
+        return this.set("password", val);
     }
 }
 ```
