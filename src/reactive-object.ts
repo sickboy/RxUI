@@ -108,7 +108,25 @@ export class ReactiveObject {
                 }
             }
         }
-
+        
+        // Remove the ____ghosted properties from visited properties
+        queue.push({ node: obj, ghost: null });
+        while (queue.length > 0) {
+            var current = queue.shift();
+            for (var prop in current.node) {
+                if (prop.indexOf("_") !== 0) {
+                    var val = current.node[prop];
+                    var type = typeof val;
+                    if (type === "object" && val && val.____ghosted) {
+                        delete val.____ghosted;
+                        queue.push({
+                            node: val,
+                            ghost: null
+                        });
+                    }
+                }
+            }
+        }
         return vm;
     }
 
@@ -340,17 +358,128 @@ export class ReactiveObject {
 
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
-     * @param properties The names of the properties to watch.
+     */
+    public whenAnyValue<T1>(
+        first: string | ((o: this) => T1)
+    ): Observable<T1>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, TResult>(
+        first: string | ((o: this) => T1),
+        map?: (_1: T1) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @param map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2)
+    ): Observable<(T1 | T2)[]>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @param map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, TResult>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        map?: (_1: T1, _2: T2) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, T3>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3)
+    ): Observable<(T1 | T2 | T3)[]>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, T3, TResult>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        map?: (_1: T1, _2: T2, _3: T3) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, T3, T4>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4)
+    ): Observable<(T1 | T2 | T3 | T4)[]>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, T3, T4, TResult>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
+        map?: (_1: T1, _2: T2, _3: T3, _4: T4) => TResult
+    ): Observable<TResult>;
+
+    // TODO: add more method alternatives
+
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, T3, T4, T5, TResult>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
+        fifth: string | ((o: this) => T5),
+        map?: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, T3, T4, T5, T6, TResult>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
+        fifth: string | ((o: this) => T5),
+        sixth: string | ((o: this) => T6),
+        map?: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5, _6: T6) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+     * @map A function that, given the values for the properties, maps to the desired return value.
+     */
+    public whenAnyValue<T1, T2, T3, T4, T5, T6, T7, TResult>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4),
+        fifth: string | ((o: this) => T5),
+        sixth: string | ((o: this) => T6),
+        seventh: string | ((o: this) => T7),
+        map?: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5, _6: T6, _7: T7) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
      * @map A function that, given the values for the properties, maps to the desired return value.
      */
     public whenAnyValue<TResult>(
         ...args: (((o: this) => any) | string | ((...a: any[]) => TResult))[]
     ): Observable<TResult> {
-
         var mapFunction = this.getMapFunction(args);
-        var whenAnyArgs: any = mapFunction ? args.slice(0, args.length) : args;
-
-        return this.whenAny(whenAnyArgs, (...events: PropertyChangedEventArgs<any>[]) => {
+        var whenAnyArgs: any = mapFunction ? args.slice(0, args.length - 1) : args;
+        var whenAny = this.whenAny.bind(this);
+        return whenAny(...whenAnyArgs, (...events: PropertyChangedEventArgs<any>[]) => {
             var eventValues = events.map(e => e.newPropertyValue);
             if (mapFunction) {
                 return mapFunction(...eventValues);

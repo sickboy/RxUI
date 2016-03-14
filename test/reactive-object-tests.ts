@@ -213,6 +213,26 @@ describe("ReactiveObject", () => {
 
             obj.child.child.child.child.prop = "value";
         });
+        
+        it("should observe mapped property events for the entire child tree", (done) => {
+            var obj: MyObject = new MyObject();
+            var child: MyOtherObject = new MyOtherObject();
+            var child2: MyOtherObject = new MyOtherObject();
+            var child3: MyOtherObject = new MyOtherObject();
+            var child4: MyOtherObject = new MyOtherObject();
+
+            obj.child = child;
+            child.child = child2;
+            child2.child = child3;
+            child3.child = child4;
+
+            obj.whenAny(o => o.child.child.child.child.prop, e => e.newPropertyValue).subscribe(value => {
+                expect(value).to.equal("value");
+                done();
+            }, err => done(err));
+
+            obj.child.child.child.child.prop = "value";
+        });
 
         it("should observe property events for swapped children", (done) => {
             var obj: MyObject = new MyObject();
@@ -486,6 +506,79 @@ describe("ReactiveObject", () => {
         });
     });
 
+    describe("#whenAnyValue(lambda)", () => {
+        it("should return an observable", () => {
+            var obj: MyObject = new MyObject();
+            var observable = obj.whenAnyValue(o => o.otherProp);
+            
+            expect(observable).to.be.instanceOf(Observable);
+        });
+        
+        it("should observe property values for the given property name", (done) => {
+            var obj: MyObject = new MyObject();
+            obj.whenAnyValue(o => o.otherProp).subscribe(value => {
+                expect(value).to.equal("value");
+                done();
+            }, err => done(err));
+            
+            obj.otherProp = "value";
+        });
+        
+        it("should observe property values for the given property names", (done) => {
+            var obj: MyObject = new MyObject();
+            
+            obj.whenAnyValue(o => o.prop1, (o: MyObject) => o.prop2).subscribe(values => {
+                expect(values.length).to.equal(2);
+                expect(values[0]).to.equal("value");
+                expect(values[1]).to.equal("value2");
+                done();
+            }, err => done(err));
+            
+            obj.prop1 = "value";
+            obj.prop2 = "value2";
+        });
+        
+        it("should observe deep property value changes", (done) => {
+            var obj: MyObject = new MyObject();
+            var child: MyOtherObject = new MyOtherObject();
+            var child2: MyOtherObject = new MyOtherObject();
+            var child3: MyOtherObject = new MyOtherObject();
+            var child4: MyOtherObject = new MyOtherObject();
+
+            obj.child = child;
+            child.child = child2;
+            child2.child = child3;
+            child3.child = child4;
+            
+            obj.whenAnyValue(o => o.child.child.child.child.prop).subscribe(value => {
+                expect(value).to.equal("value");
+                done();
+            }, err => done(err));
+            
+            obj.child.child.child.child.prop = "value";
+        });
+        
+        it("should observe mapped deep property value changes", (done) => {
+            var obj: MyObject = new MyObject();
+            var child: MyOtherObject = new MyOtherObject();
+            var child2: MyOtherObject = new MyOtherObject();
+            var child3: MyOtherObject = new MyOtherObject();
+            var child4: MyOtherObject = new MyOtherObject();
+
+            obj.child = child;
+            child.child = child2;
+            child2.child = child3;
+            child3.child = child4;
+            
+            obj.whenAnyValue(o => o.child.child.child.child.prop, v => v === "value").subscribe(value => {
+                expect(value).to.be.true;
+                done();
+            }, err => done(err));
+            
+            obj.child.child.child.child.prop = "value";
+        });
+    });
+
     describe("#whenAnyValue(prop)", () => {
         it("should return an observable", () => {
             var obj: ReactiveObject = new ReactiveObject();
@@ -508,7 +601,7 @@ describe("ReactiveObject", () => {
         it("should observe multiple property values for the given property names", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
-            obj.whenAnyValue<string[]>("prop", "prop2").subscribe(values => {
+            obj.whenAnyValue<string, string>("prop", "prop2").subscribe(values => {
                 expect(values.length).to.equal(2);
                 expect(values[0]).to.equal("value");
                 expect(values[1]).to.equal("value2");
