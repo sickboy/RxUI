@@ -227,7 +227,7 @@ export class ReactiveObject {
         second: string | ((o: this) => T2),
         third: string | ((o: this) => T3),
         fourth: string | ((o: this) => T4)
-    ): Observable<PropertyChangedEventArgs<T1 | T2 | T3 | T4>>;
+    ): Observable<PropertyChangedEventArgs<T1 | T2 | T3 | T4>[]>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
      * @param properties The names of the properties.
