@@ -34,7 +34,7 @@ class LoginViewModel extends ReactiveObject {
         // This is a strongly-typed observable
         // that notifies observers whether the user can login.
         var canLogin = this.whenAnyValue(
-            vm => vm.canLogin,
+            vm => vm.userName,
             vm => vm.password,
             (userName, password) => userName && password
         );
