@@ -13,10 +13,16 @@ export class ReactiveObject {
     private _propertyChanged: Subject<PropertyChangedEventArgs<any>>;
 
     /**
+     * The property that stores all of the data stored in this object.
+     */
+    private __data: any;
+
+    /**
      * Creates a new reactive object.
      */
     constructor() {
         this._propertyChanged = new Subject<PropertyChangedEventArgs<any>>();
+        this.__data = {};
     }
 
     /**
@@ -43,7 +49,7 @@ export class ReactiveObject {
      * @param property The name of the property whose value should be retrieved. 
      */
     public get<T>(property: string): T | any {
-        return this[property] || null;
+        return this.__data[property] || null;
     }
 
     /**
@@ -52,14 +58,70 @@ export class ReactiveObject {
      * @param value The value to give the property.
      */
     public set<T>(property: string, value: T): void {
-        this[property] = value;
+        this.__data[property] = value;
         this.emitPropertyChanged(property, value);
+    }
+
+    /**
+     * Runs the given function against a dummy version of this
+     * object that builds a string that represents the properties that should be watched.
+     * @param expr The function that represents the lambda expression.
+     */
+    private evaluateLambdaExpression(expr: (o: this) => any): string {
+        var path: string[] = [];
+        var ghost = this.buildGhostObject(path, this);
+        expr(ghost);
+        return path.join(".");
+    }
+
+    private buildGhostObject(arr: string[], obj: any): any {
+        var vm: any = {};
+        var queue = [{ node: obj, ghost: vm }];
+
+        function declareProperty(currentGhost, ghost, propertyName) {
+            Object.defineProperty(currentGhost, propertyName, {
+                get: () => {
+                    arr.push(propertyName);
+                    return ghost;
+                }
+            });
+        }
+
+        while (queue.length > 0) {
+            var current = queue.shift();
+            for (var prop in current.node) {
+                // underscored properties should be ignored, because they are private
+                if (prop.indexOf("_") !== 0) {
+                    var val = current.node[prop];
+                    var type = typeof val;
+                    var ghost = {};
+                    if (type !== "function" && type !== "undefined" && !current.ghost.hasOwnProperty(prop)) {
+                        declareProperty(current.ghost, ghost, prop);
+                        if (type === "object" && val && !val.____ghosted) {
+                            val.____ghosted = true;
+                            queue.push({
+                                node: val,
+                                ghost: ghost
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return vm;
     }
 
     /**
      * Gets an observable that resolves with the related property changed event whenever the given property updates.
      */
-    public whenSingle(prop: string, emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
+    public whenSingle(expression: string | ((o: this) => any), emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
+        var prop: string;
+        if (typeof expression === "function") {
+            prop = this.evaluateLambdaExpression(expression);
+        } else {
+            prop = <any>expression;
+        }
         var children = prop.split(".");
 
         if (children.length === 1) {
@@ -103,13 +165,28 @@ export class ReactiveObject {
 
     /**
      * Gets an observable that resolves with the related property changed event whenever the given property updates.
-     * @param properties The name of the property.
+     * @param first The name of the first property to watch.
+     */
+    public whenAny<T1>(
+        first: string | ((o: this) => T1)
+    ): Observable<PropertyChangedEventArgs<T1>>;
+    /**
+     * Gets an observable that resolves with the related property changed event whenever the given property updates.
+     * @param first The name of the first property to watch.
      * @param map A function that, given the event arguments for the property, maps to the desired return values.
      */
     public whenAny<T1, TResult>(
         first: string | ((o: this) => T1),
-        map?: (_1: PropertyChangedEventArgs<T1>) => TResult
-    ): Observable<TResult | PropertyChangedEventArgs<any>>;
+        map: (_1: PropertyChangedEventArgs<T1>) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property changed event whenever the given properties update.
+     * @param properties The names of the properties.
+     */
+    public whenAny<T1, T2>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2)
+    ): Observable<PropertyChangedEventArgs<T1 | T2>[]>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
      * @param properties The names of the properties.
@@ -118,8 +195,17 @@ export class ReactiveObject {
     public whenAny<T1, T2, TResult>(
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
-        map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>) => TResult
-    ): Observable<TResult | PropertyChangedEventArgs<any>>;
+        map: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property changed event whenever the given properties update.
+     * @param properties The names of the properties.
+     */
+    public whenAny<T1, T2, T3>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3)
+    ): Observable<PropertyChangedEventArgs<T1 | T2 | T3>[]>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
      * @param properties The names of the properties.
@@ -129,8 +215,19 @@ export class ReactiveObject {
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
         third: string | ((o: this) => T3),
-        map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>) => TResult
-    ): Observable<TResult | PropertyChangedEventArgs<any>>;
+        map: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>) => TResult
+    ): Observable<TResult>;
+    /**
+     * Gets an observable that resolves with the related property changed event whenever the given properties update.
+     * @param properties The names of the properties.
+     * @param map A function that, given the event arguments for the properties, maps to the desired return values.
+     */
+    public whenAny<T1, T2, T3, T4>(
+        first: string | ((o: this) => T1),
+        second: string | ((o: this) => T2),
+        third: string | ((o: this) => T3),
+        fourth: string | ((o: this) => T4)
+    ): Observable<PropertyChangedEventArgs<T1 | T2 | T3 | T4>>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
      * @param properties The names of the properties.
@@ -141,8 +238,10 @@ export class ReactiveObject {
         second: string | ((o: this) => T2),
         third: string | ((o: this) => T3),
         fourth: string | ((o: this) => T4),
-        map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>) => TResult
+        map: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
+
+    // TODO: Add more variations
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
      * @param properties The names of the properties.
@@ -199,16 +298,14 @@ export class ReactiveObject {
         function iterateProperties(properties: any[]) {
             properties.forEach((p, i) => {
                 var type = typeof p;
-                if (type === "string") {
+                if (type === "string" || type === "function") {
                     finalProperties.push(p);
-                } else if (type === "function") {
-                    // handle lambda function
                 } else if (Array.isArray(p)) {
                     iterateProperties(p);
                 }
             });
         }
-        iterateProperties(map ? args.slice(0, args.length) : args);
+        iterateProperties(map ? args.slice(0, args.length - 1) : args);
         var observableList = finalProperties.map(prop => {
             return this.whenSingle(prop);
         }).filter(o => o != null);
@@ -228,9 +325,9 @@ export class ReactiveObject {
     private getMapFunction(values: any[]): Function {
         var mapFunction: Function = null;
         var lastArg: any = values[values.length - 1];
-        if (typeof lastArg === "function") {
+        if (values.length > 1 && typeof lastArg === "function") {
             try {
-                var propName = lastArg();
+                var propName = this.evaluateLambdaExpression(lastArg);
                 if (!propName || typeof propName !== "string") {
                     mapFunction = lastArg;
                 }
@@ -255,9 +352,9 @@ export class ReactiveObject {
 
         return this.whenAny(whenAnyArgs, (...events: PropertyChangedEventArgs<any>[]) => {
             var eventValues = events.map(e => e.newPropertyValue);
-            if(mapFunction) {
+            if (mapFunction) {
                 return mapFunction(...eventValues);
-            } else if(eventValues.length == 1) {
+            } else if (eventValues.length == 1) {
                 return eventValues[0];
             } else {
                 return eventValues;
