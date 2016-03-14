@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require(undefined));
+		module.exports = factory(require(undefined), require("rxjs/Observable"));
 	else if(typeof define === 'function' && define.amd)
-		define(["rxjs/Rx"], factory);
+		define(["rxjs/Rx", "rxjs/Observable"], factory);
 	else if(typeof exports === 'object')
-		exports["RxUI"] = factory(require("rxjs/Rx"));
+		exports["RxUI"] = factory(require("rxjs/Rx"), require("rxjs/Observable"));
 	else
-		root["RxUI"] = factory(root["Rx"]);
-})(this, function(__WEBPACK_EXTERNAL_MODULE_2__) {
+		root["RxUI"] = factory(root["Rx"], root["rxjs/Observable"]);
+})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_6__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -69,6 +69,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	"use strict";
 	var Rx_1 = __webpack_require__(2);
 	var property_changed_event_args_1 = __webpack_require__(3);
+	var invoke_command_1 = __webpack_require__(5);
 	/**
 	 * Defines a class that represents a reactive object.
 	 * This is the base class for View Model classes, and it implements an event system that
@@ -80,6 +81,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     */
 	    function ReactiveObject() {
 	        this._propertyChanged = new Rx_1.Subject();
+	        this.__data = {};
 	    }
 	    Object.defineProperty(ReactiveObject.prototype, "propertyChanged", {
 	        /**
@@ -106,7 +108,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param property The name of the property whose value should be retrieved.
 	     */
 	    ReactiveObject.prototype.get = function (property) {
-	        return this[property] || null;
+	        return this.__data[property] || null;
 	    };
 	    /**
 	     * Sets the value of the given property on this object and emits the "propertyChanged" event.
@@ -114,23 +116,92 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param value The value to give the property.
 	     */
 	    ReactiveObject.prototype.set = function (property, value) {
-	        this[property] = value;
+	        this.__data[property] = value;
 	        this.emitPropertyChanged(property, value);
+	    };
+	    /**
+	     * Runs the given function against a dummy version of this
+	     * object that builds a string that represents the properties that should be watched.
+	     * @param expr The function that represents the lambda expression.
+	     */
+	    ReactiveObject.prototype.evaluateLambdaExpression = function (expr) {
+	        var path = [];
+	        var ghost = this.buildGhostObject(path, this);
+	        expr(ghost);
+	        return path.join(".");
+	    };
+	    ReactiveObject.prototype.buildGhostObject = function (arr, obj) {
+	        var vm = {};
+	        var queue = [{ node: obj, ghost: vm }];
+	        function declareProperty(currentGhost, ghost, propertyName) {
+	            Object.defineProperty(currentGhost, propertyName, {
+	                get: function () {
+	                    arr.push(propertyName);
+	                    return ghost;
+	                }
+	            });
+	        }
+	        while (queue.length > 0) {
+	            var current = queue.shift();
+	            for (var prop in current.node) {
+	                // underscored properties should be ignored, because they are private
+	                if (prop.indexOf("_") !== 0) {
+	                    var val = current.node[prop];
+	                    var type = typeof val;
+	                    var ghost = {};
+	                    if (type !== "function" && type !== "undefined" && !current.ghost.hasOwnProperty(prop)) {
+	                        declareProperty(current.ghost, ghost, prop);
+	                        if (type === "object" && val && !val.____ghosted) {
+	                            val.____ghosted = true;
+	                            queue.push({
+	                                node: val,
+	                                ghost: ghost
+	                            });
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	        // Remove the ____ghosted properties from visited properties
+	        queue.push({ node: obj, ghost: null });
+	        while (queue.length > 0) {
+	            var current = queue.shift();
+	            for (var prop in current.node) {
+	                if (prop.indexOf("_") !== 0) {
+	                    var val = current.node[prop];
+	                    var type = typeof val;
+	                    if (type === "object" && val && val.____ghosted) {
+	                        delete val.____ghosted;
+	                        queue.push({
+	                            node: val,
+	                            ghost: null
+	                        });
+	                    }
+	                }
+	            }
+	        }
+	        return vm;
 	    };
 	    /**
 	     * Gets an observable that resolves with the related property changed event whenever the given property updates.
 	     */
-	    ReactiveObject.prototype.whenSingle = function (prop, emitCurrentVal) {
+	    ReactiveObject.prototype.whenSingle = function (expression, emitCurrentVal) {
 	        if (emitCurrentVal === void 0) { emitCurrentVal = false; }
+	        var prop;
+	        if (typeof expression === "function") {
+	            prop = this.evaluateLambdaExpression(expression);
+	        }
+	        else {
+	            prop = expression;
+	        }
 	        var children = prop.split(".");
 	        if (children.length === 1) {
 	            var child = this;
 	            var observable = child.propertyChanged.filter(function (e) {
-	                console.log(e.propertyName + ":" + prop);
 	                return e.propertyName == prop;
 	            });
 	            if (emitCurrentVal) {
-	                return Rx_1.Observable.fromArray([this.createPropertyChangedEventArgs(prop, this.get(prop))]).concat(observable);
+	                return Rx_1.Observable.of(this.createPropertyChangedEventArgs(prop, this.get(prop))).concat(observable);
 	            }
 	            else {
 	                return observable;
@@ -141,7 +212,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var firstProp = children[0]; // = "first"
 	            // All of the other properties = "second.third"
 	            var propertiesWithoutFirst = prop.substring(firstProp.length + 1);
-	            console.log("Properties without first: " + propertiesWithoutFirst);
 	            // Get the object/value that is at the "first" key of this object.
 	            var firstChild = this.get(firstProp);
 	            if (typeof firstChild.whenSingle === "function") {
@@ -163,72 +233,119 @@ return /******/ (function(modules) { // webpackBootstrap
 	                throw new Error("Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '" + firstProp + "', is not a Reactive Object when it should be.");
 	            }
 	        }
-	        // child.child2.prop
-	        // observe child
-	        // observe child2
-	        // observe prop (pipe)
-	        // newChild
-	        // observe newChild.child2
-	        // observe prop (pipe)
-	        // newChild2
-	        // observe prop (pipe)
 	    };
 	    /**
 	     * Gets an observable that resolves with the related property changed event whenever the given properties update.
 	     * @param properties The names of the properties.
-	     * @param map A function that, given the event arguments for the properties, maps to the desired return value.
+	     * @param map A function that, given the event arguments for the properties, maps to the desired return values.
 	     */
-	    ReactiveObject.prototype.whenAny = function (properties, map) {
+	    ReactiveObject.prototype.whenAny = function () {
 	        var _this = this;
-	        if (typeof properties === "string") {
-	            return this.whenSingle(properties);
+	        var args = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            args[_i - 0] = arguments[_i];
+	        }
+	        var finalProperties = [];
+	        var map = this.getMapFunction(args);
+	        function iterateProperties(properties) {
+	            properties.forEach(function (p, i) {
+	                var type = typeof p;
+	                if (type === "string" || type === "function") {
+	                    finalProperties.push(p);
+	                }
+	                else if (Array.isArray(p)) {
+	                    iterateProperties(p);
+	                }
+	            });
+	        }
+	        iterateProperties(map ? args.slice(0, args.length - 1) : args);
+	        var observableList = finalProperties.map(function (prop) {
+	            return _this.whenSingle(prop);
+	        }).filter(function (o) { return o != null; });
+	        if (map) {
+	            return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([map]));
 	        }
 	        else {
-	            var propertyList = properties;
-	            var observableList = propertyList.map(function (prop) {
-	                return _this.whenSingle(prop);
-	            }).filter(function (o) { return o != null; });
-	            if (map) {
-	                return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([map]));
-	            }
-	            else {
-	                return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList);
-	            }
-	        }
-	    };
-	    /**
-	     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
-	     * @param properties The names of the properties to watch.
-	     * @map A function that, given the values for the properties, maps to the desired return value.
-	     */
-	    ReactiveObject.prototype.whenAnyValue = function (properties, map) {
-	        if (typeof properties === "string") {
-	            var mapFunc = map || (function () {
-	                var values = [];
-	                for (var _i = 0; _i < arguments.length; _i++) {
-	                    values[_i - 0] = arguments[_i];
-	                }
-	                return values[0];
-	            });
-	            return this.whenAny(properties).map(function (e) { return mapFunc(e.newPropertyValue); });
-	        }
-	        else {
-	            var multiMapFunc = map || (function () {
-	                var values = [];
-	                for (var _i = 0; _i < arguments.length; _i++) {
-	                    values[_i - 0] = arguments[_i];
-	                }
-	                return values;
-	            });
-	            return this.whenAny(properties, function () {
+	            return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([function () {
 	                var events = [];
 	                for (var _i = 0; _i < arguments.length; _i++) {
 	                    events[_i - 0] = arguments[_i];
 	                }
-	                var a = events.map(function (e) { return e.newPropertyValue; });
-	                return multiMapFunc.apply(void 0, a);
-	            });
+	                if (events.length == 1) {
+	                    return events[0];
+	                }
+	                else {
+	                    return events;
+	                }
+	            }]));
 	        }
+	    };
+	    ReactiveObject.prototype.getMapFunction = function (values) {
+	        var mapFunction = null;
+	        var lastArg = values[values.length - 1];
+	        if (values.length > 1 && typeof lastArg === "function") {
+	            try {
+	                var propName = this.evaluateLambdaExpression(lastArg);
+	                if (!propName || typeof propName !== "string") {
+	                    mapFunction = lastArg;
+	                }
+	            }
+	            catch (ex) {
+	                mapFunction = lastArg;
+	            }
+	        }
+	        return mapFunction;
+	    };
+	    /**
+	     * Gets an observable that resolves with the related property value(s) whenever the given properties update.
+	     * @map A function that, given the values for the properties, maps to the desired return value.
+	     */
+	    ReactiveObject.prototype.whenAnyValue = function () {
+	        var args = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            args[_i - 0] = arguments[_i];
+	        }
+	        var mapFunction = this.getMapFunction(args);
+	        var whenAnyArgs = mapFunction ? args.slice(0, args.length - 1) : args;
+	        var whenAny = this.whenAny.bind(this);
+	        return whenAny.apply(void 0, whenAnyArgs.concat([function () {
+	            var events = [];
+	            for (var _i = 0; _i < arguments.length; _i++) {
+	                events[_i - 0] = arguments[_i];
+	            }
+	            var eventValues = events.map(function (e) { return e.newPropertyValue; });
+	            if (mapFunction) {
+	                return mapFunction.apply(void 0, eventValues);
+	            }
+	            else if (eventValues.length == 1) {
+	                return eventValues[0];
+	            }
+	            else {
+	                return eventValues;
+	            }
+	        }]));
+	    };
+	    ReactiveObject.prototype.when = function (observable) {
+	        if (typeof observable === "string") {
+	            return this.whenSingle(observable, true).map(function (e) { return e.newPropertyValue; }).switch();
+	        }
+	        else {
+	            return observable;
+	        }
+	    };
+	    /**
+	     * Attempts to invoke the given command when the given Observable resolves with a new value.
+	     * The command will not be invoked unless it can execute.
+	     * Returns a cold Observable that resolves with the results of the executions.
+	     * The returned Observable MUST be subscribed to in order for the command to execute.
+	     *
+	     * @param observable The Observable object that should be used as the trigger for the command.
+	     *                   Additionally, if a property name is passed in, the most recent Observable stored at that property is used.
+	     * @param command The ReactiveCommand object that should be executed.
+	     *                If a property name is passed in, the most recent command stored at that property is used.
+	     */
+	    ReactiveObject.prototype.invokeCommandWhen = function (observable, command) {
+	        return invoke_command_1.invokeCommand(this.when(observable), this, command);
 	    };
 	    return ReactiveObject;
 	}());
@@ -323,6 +440,57 @@ return /******/ (function(modules) { // webpackBootstrap
 	}());
 	exports.EventArgs = EventArgs;
 
+
+/***/ },
+/* 5 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var Observable_1 = __webpack_require__(6);
+	/**
+	 * Creates a new cold observable that maps values observed from the source Observable to values resolved from a ReactiveCommand.
+	 * Essentially, this means that the command is executed whenever the source Observable resolves a new value, so long as the command is executable at the moment.
+	 * @param source The Observable that should be used as the trigger for the command.
+	 * @param obj The Reactive Object that the command exists on.
+	 * @param command The name of the property that holds the ReactiveCommand that should be subscribed to.
+	 *                Alternatively, the actual command object that should be executed can be passed in.
+	 */
+	function invokeCommand(source, obj, command) {
+	    var commandObservable;
+	    var canExecute;
+	    var isExecuting;
+	    if (typeof command === "string") {
+	        // Make sure that the current command is observed
+	        commandObservable = obj.whenSingle(command, true).map(function (e) { return e.newPropertyValue; });
+	        canExecute = commandObservable.map(function (c) { return c.canExecute; }).switch();
+	    }
+	    else {
+	        commandObservable = Observable_1.Observable.of(command);
+	        canExecute = command.canExecute;
+	    }
+	    var results = source
+	        .withLatestFrom(commandObservable, canExecute, function (v1, command, canExecute) {
+	        return {
+	            canExecute: canExecute,
+	            command: command,
+	            observedValue: v1
+	        };
+	    })
+	        .filter(function (o) { return o.canExecute && o.command != null; })
+	        .distinctUntilChanged()
+	        .map(function (o) {
+	        return o.command.executeAsync(o.observedValue);
+	    }).merge();
+	    return results;
+	}
+	exports.invokeCommand = invokeCommand;
+
+
+/***/ },
+/* 6 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_6__;
 
 /***/ }
 /******/ ])
