@@ -484,7 +484,7 @@ export class ReactiveObject {
      * @param command The ReactiveCommand object that should be executed. 
      *                If a property name is passed in, the most recent command stored at that property is used.
      */
-    public invokeCommandWhen<T>(observable: string | Observable<any>, command: string | ReactiveCommand<T>): Observable<T> {
+    public invokeCommandWhen<T>(observable: string | Observable<any>, command: string | ReactiveCommand<any, T>): Observable<T> {
         return invokeCommand(this.when(observable), this, command);
     }
 }

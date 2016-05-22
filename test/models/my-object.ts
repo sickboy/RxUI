@@ -56,7 +56,7 @@ export class MyObject extends ReactiveObject {
         }).startWith(false);
     }
     
-    private command: ReactiveCommand<boolean>;
+    private command: ReactiveCommand<number, boolean>;
 
     constructor() {
         super();

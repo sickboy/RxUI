@@ -10,8 +10,8 @@ import {ReactiveCommand} from "../reactive-command";
  * @param command The name of the property that holds the ReactiveCommand that should be subscribed to. 
  *                Alternatively, the actual command object that should be executed can be passed in. 
  */
-export function invokeCommand<TObj extends ReactiveObject, TResult>(source: Observable<any>, obj: TObj, command: string | ReactiveCommand<TResult>): Observable<TResult> {
-    var commandObservable: Observable<ReactiveCommand<TResult>>;
+export function invokeCommand<TObj extends ReactiveObject, TArg, TResult>(source: Observable<TArg>, obj: TObj, command: string | ReactiveCommand<TArg, TResult>): Observable<TResult> {
+    var commandObservable: Observable<ReactiveCommand<TArg, TResult>>;
     var canExecute: Observable<boolean>;
     var isExecuting: Observable<boolean>;
     if (typeof command === "string") {
