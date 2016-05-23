@@ -5,6 +5,7 @@ import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
 import {ReactivePropertyInfo} from "./reactive-property-info";
+import "harmony-reflect";
 
 /**
  * Defines a class that represents a reactive object.
@@ -72,38 +73,21 @@ export class ReactiveObject {
      */
     private evaluateLambdaExpression(expr: (o: this) => any): string {
         var path: string[] = [];
-        var ghost = this.buildGhostObject(path, this);
+        var ghost = this.buildGhostObject(path);
         expr(ghost);
         return path.join(".");
     }
 
-    private buildGhostObject(arr: string[], obj: any): any {
-        if (!obj || typeof obj !== "object" || obj.__data === null) {
-            return null;
-        } else {
-            var vm: any = {};
-            var builder = this;
-            function declareProperty(currentGhost, propertyName) {
-                Object.defineProperty(currentGhost, propertyName, {
-                    get: () => {
-                        arr.push(propertyName);
-                        return builder.buildGhostObject(arr, obj.__data[propertyName]);
-                    }
-                });
-            }
-            for (var prop in obj.__data) {
-                // underscored properties should be ignored, because they are private
-                if (prop.indexOf("_") !== 0) {
-                    var val = obj.__data[prop];
-                    var type = typeof val;
-                    var ghost = {};
-                    if (type !== "function" && type !== "undefined") {
-                        declareProperty(vm, prop);
-                    }
+    private buildGhostObject(arr: string[]): any {
+        function buildProxy(): Proxy {
+            return new Proxy({}, {
+                get(target: any, prop: string, reciever: Proxy): any {
+                    arr.push(prop);
+                    return buildProxy();
                 }
-            }
-            return vm;
+            });
         }
+        return buildProxy();
     }
 
     /**
@@ -135,25 +119,29 @@ export class ReactiveObject {
             var propertiesWithoutFirst = prop.substring(firstProp.length + 1);
             // Get the object/value that is at the "first" key of this object.
             var firstChild: ReactiveObject = this.get(firstProp);
-            if (typeof firstChild.whenSingle === "function") {
-                // Watch for changes to the "first" property on this object,
-                // and subscribe to the rest of the properties on that object.
-                // Switch between the observed values, so that only the most recent object graph
-                // property changes are observed.
 
-                // Store the number of times that the property has been changed at this level.
-                // This way, we can be sure about whether to emit the current value or not, based on whether
-                // we have observed 2 or more events at this level.
-                var observationCount: number = 0;
-                return this.whenSingle(firstProp, true).map(change => {
-                    var obj: ReactiveObject = change.newPropertyValue;
+            // Watch for changes to the "first" property on this object,
+            // and subscribe to the rest of the properties on that object.
+            // Switch between the observed values, so that only the most recent object graph
+            // property changes are observed.
 
-                    observationCount++;
+            // Store the number of times that the property has been changed at this level.
+            // This way, we can be sure about whether to emit the current value or not, based on whether
+            // we have observed 2 or more events at this level.
+            var observationCount: number = 0;
+            return this.whenSingle(firstProp, true).map(change => {
+                var obj: ReactiveObject = change.newPropertyValue;
+                observationCount++;
+                if (obj && typeof obj.whenSingle !== "function") {
+                    throw new Error(`Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '${firstProp}', is not a Reactive Object when it should be.`);
+                } else if (obj !== null && typeof obj !== "undefined") {
                     return obj.whenSingle(propertiesWithoutFirst, emitCurrentVal || observationCount > 1);
-                }).switch();
-            } else {
-                throw new Error(`Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '${firstProp}', is not a Reactive Object when it should be.`);
-            }
+                } else if (emitCurrentVal) {
+                    return Observable.of(change);
+                } else {
+                    return Observable.empty<PropertyChangedEventArgs<any>>();
+                }
+            }).switch();
         }
     }
 
@@ -179,7 +167,7 @@ export class ReactiveObject {
      */
     public whenAny<T1, T2>(
         first: string | ((o: this) => T1),
-        second: string | ((o: this) => T2)
+        second: string
     ): Observable<PropertyChangedEventArgs<T1 | T2>[]>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
@@ -198,7 +186,7 @@ export class ReactiveObject {
     public whenAny<T1, T2, T3>(
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
-        third: string | ((o: this) => T3)
+        third: string
     ): Observable<PropertyChangedEventArgs<T1 | T2 | T3>[]>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
@@ -220,7 +208,7 @@ export class ReactiveObject {
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
         third: string | ((o: this) => T3),
-        fourth: string | ((o: this) => T4)
+        fourth: string
     ): Observable<PropertyChangedEventArgs<T1 | T2 | T3 | T4>[]>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
@@ -247,7 +235,7 @@ export class ReactiveObject {
         third: string | ((o: this) => T3),
         fourth: string | ((o: this) => T4),
         fifth: string | ((o: this) => T5),
-        map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>) => TResult
+        map: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
@@ -261,7 +249,7 @@ export class ReactiveObject {
         fourth: string | ((o: this) => T4),
         fifth: string | ((o: this) => T5),
         sixth: string | ((o: this) => T6),
-        map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>, _6: PropertyChangedEventArgs<T6>) => TResult
+        map: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>, _6: PropertyChangedEventArgs<T6>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
@@ -276,7 +264,7 @@ export class ReactiveObject {
         fifth: string | ((o: this) => T5),
         sixth: string | ((o: this) => T6),
         seventh: string | ((o: this) => T7),
-        map?: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>, _6: PropertyChangedEventArgs<T6>, _7: PropertyChangedEventArgs<T7>) => TResult
+        map: (_1: PropertyChangedEventArgs<T1>, _2: PropertyChangedEventArgs<T2>, _3: PropertyChangedEventArgs<T3>, _4: PropertyChangedEventArgs<T4>, _5: PropertyChangedEventArgs<T5>, _6: PropertyChangedEventArgs<T6>, _7: PropertyChangedEventArgs<T7>) => TResult
     ): Observable<TResult | PropertyChangedEventArgs<any>>;
     /**
      * Gets an observable that resolves with the related property changed event whenever the given properties update.
@@ -320,14 +308,7 @@ export class ReactiveObject {
         var mapFunction: Function = null;
         var lastArg: any = values[values.length - 1];
         if (values.length > 1 && typeof lastArg === "function") {
-            try {
-                var propName = this.evaluateLambdaExpression(lastArg);
-                if (!propName || typeof propName !== "string") {
-                    mapFunction = lastArg;
-                }
-            } catch (ex) {
-                mapFunction = lastArg;
-            }
+            mapFunction = lastArg;
         }
         return mapFunction;
     }
@@ -344,7 +325,7 @@ export class ReactiveObject {
      */
     public whenAnyValue<T1, TResult>(
         first: string | ((o: this) => T1),
-        map?: (_1: T1) => TResult
+        map: (_1: T1) => TResult
     ): Observable<TResult>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -352,7 +333,7 @@ export class ReactiveObject {
      */
     public whenAnyValue<T1, T2>(
         first: string | ((o: this) => T1),
-        second: string | ((o: this) => T2)
+        second: string
     ): Observable<(T1 | T2)[]>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -361,7 +342,7 @@ export class ReactiveObject {
     public whenAnyValue<T1, T2, TResult>(
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
-        map?: (_1: T1, _2: T2) => TResult
+        map: (_1: T1, _2: T2) => TResult
     ): Observable<TResult>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -370,7 +351,7 @@ export class ReactiveObject {
     public whenAnyValue<T1, T2, T3>(
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
-        third: string | ((o: this) => T3)
+        third: string
     ): Observable<(T1 | T2 | T3)[]>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -380,7 +361,7 @@ export class ReactiveObject {
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
         third: string | ((o: this) => T3),
-        map?: (_1: T1, _2: T2, _3: T3) => TResult
+        map: (_1: T1, _2: T2, _3: T3) => TResult
     ): Observable<TResult>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -390,7 +371,7 @@ export class ReactiveObject {
         first: string | ((o: this) => T1),
         second: string | ((o: this) => T2),
         third: string | ((o: this) => T3),
-        fourth: string | ((o: this) => T4)
+        fourth: string
     ): Observable<(T1 | T2 | T3 | T4)[]>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -401,7 +382,7 @@ export class ReactiveObject {
         second: string | ((o: this) => T2),
         third: string | ((o: this) => T3),
         fourth: string | ((o: this) => T4),
-        map?: (_1: T1, _2: T2, _3: T3, _4: T4) => TResult
+        map: (_1: T1, _2: T2, _3: T3, _4: T4) => TResult
     ): Observable<TResult>;
 
     // TODO: add more method alternatives
@@ -416,7 +397,7 @@ export class ReactiveObject {
         third: string | ((o: this) => T3),
         fourth: string | ((o: this) => T4),
         fifth: string | ((o: this) => T5),
-        map?: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5) => TResult
+        map: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5) => TResult
     ): Observable<TResult>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -429,7 +410,7 @@ export class ReactiveObject {
         fourth: string | ((o: this) => T4),
         fifth: string | ((o: this) => T5),
         sixth: string | ((o: this) => T6),
-        map?: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5, _6: T6) => TResult
+        map: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5, _6: T6) => TResult
     ): Observable<TResult>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
@@ -443,7 +424,7 @@ export class ReactiveObject {
         fifth: string | ((o: this) => T5),
         sixth: string | ((o: this) => T6),
         seventh: string | ((o: this) => T7),
-        map?: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5, _6: T6, _7: T7) => TResult
+        map: (_1: T1, _2: T2, _3: T3, _4: T4, _5: T5, _6: T6, _7: T7) => TResult
     ): Observable<TResult>;
     /**
      * Gets an observable that resolves with the related property value(s) whenever the given properties update.
