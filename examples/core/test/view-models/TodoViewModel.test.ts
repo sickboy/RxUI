@@ -18,7 +18,7 @@ export function register() {
 
                 var viewModel = new TodoViewModel(store);
 
-                viewModel.loadTodos().take(1).subscribe(t => {
+                viewModel.loadTodos.executeAsync().first().subscribe(t => {
                     expect(t).to.equal(todos);
                     done();
                 }, err => done(err));
@@ -38,7 +38,7 @@ export function register() {
                 var viewModel = new TodoViewModel(<any>{});
                 viewModel.todos = [];
                 expect(viewModel.todos.length).to.equal(0);
-                viewModel.addTodo();
+                viewModel.addTodo;
                 expect(viewModel.todos.length).to.equal(0);
             });
             it("should add the newTodo if it has a non-empty title", (done) => {
@@ -48,8 +48,9 @@ export function register() {
                 var viewModel = new TodoViewModel(<any>service);
                 viewModel.todos = [];
                 viewModel.newTodo.title = "Title";
-
-                viewModel.addTodo().first().subscribe(() => {
+                expect(viewModel.todos.length).to.equal(0);
+                viewModel.addTodo.executeAsync().subscribe(result => {
+                    expect(result).to.be.true;
                     expect(viewModel.todos.length).to.equal(1);
                     expect(viewModel.todos[0].title).to.equal("Title");
                     expect(service.putTodos.callCount).to.equal(1);
@@ -69,7 +70,7 @@ export function register() {
                 var viewModel = new TodoViewModel(<any>service);
                 viewModel.todos = todos;
 
-                viewModel.toggleTodo(todos[0]);
+                viewModel.toggleTodo.executeAsync(todos[0]);
                 expect(service.putTodos.callCount).to.equal(1);
                 expect(service.putTodos.firstCall.calledWith(todos)).to.be.true;
             });
@@ -83,7 +84,7 @@ export function register() {
                 });
                 viewModel.todos = todos;
 
-                viewModel.toggleTodo(todos[0]).take(1).subscribe(() => {
+                viewModel.toggleTodo.invokeAsync(todos[0]).take(1).subscribe(() => {
                     expect(todos[0].completed).to.be.true;
                     done();
                 }, err => done(err));
@@ -97,7 +98,7 @@ export function register() {
                 });
                 viewModel.todos = todos;
 
-                viewModel.toggleTodo(todos[0]).take(1).subscribe(() => {
+                viewModel.toggleTodo.invokeAsync(todos[0]).take(1).subscribe(() => {
                     expect(todos[0].completed).to.be.false;
                     done();
                 }, err => done(err));
@@ -117,7 +118,7 @@ export function register() {
                 var viewModel = new TodoViewModel(<any>service);
                 viewModel.todos = todos;
 
-                viewModel.deleteTodo(missingTodo).first().subscribe(deleted => {
+                viewModel.deleteTodo.invokeAsync(missingTodo).first().subscribe(deleted => {
                     expect(deleted).to.be.false;
                     expect(service.putTodos.called).to.be.false;
                     done();
@@ -135,7 +136,7 @@ export function register() {
                 var viewModel = new TodoViewModel(<any>service);
                 viewModel.todos = todos;
 
-                viewModel.deleteTodo(todos[0]).first().subscribe(deleted => {
+                viewModel.deleteTodo.invokeAsync(todos[0]).first().subscribe(deleted => {
                     expect(deleted).to.be.true;
                     expect(todos.length).to.equal(1);
                     expect(todos[0].title).to.equal("Other");
@@ -156,7 +157,7 @@ export function register() {
                 var viewModel = new TodoViewModel(<any>service);
                 viewModel.todos = todos;
 
-                viewModel.save().first().subscribe(saved => {
+                viewModel.save.invokeAsync().first().subscribe(saved => {
                     expect(saved).to.equal(true);
                     expect(service.putTodos.called).to.be.true;
                     expect(service.putTodos.firstCall.calledWithExactly(todos)).to.be.true;

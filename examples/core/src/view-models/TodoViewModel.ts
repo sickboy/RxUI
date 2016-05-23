@@ -1,7 +1,7 @@
 import {ReactiveObject, ReactiveCommand} from "rxui";
 import {Todo} from "../models/Todo";
 import {TodoStorage} from "../services/TodoStorage";
-import {Observable} from "rxjs/Observable";
+import {Observable} from "rxjs/Rx";
 
 /**
  * Defines a view model that provides functionality for viewing and editing TODOs.
@@ -9,15 +9,38 @@ import {Observable} from "rxjs/Observable";
 export class TodoViewModel extends ReactiveObject {
 
     private _store: TodoStorage;
-    private _saveCommand: ReactiveCommand<boolean>;
-    private _loadCommand: ReactiveCommand<Todo[]>;
-    private _deleteCommand: ReactiveCommand<boolean>;
-    private _toggleTodo: ReactiveCommand<boolean>;
-    private _addCommand: ReactiveCommand<boolean>;
-    private _editCommand: ReactiveCommand<boolean>;
-    private _undoCommand: ReactiveCommand<boolean>;
-    
+    private _saveCommand: ReactiveCommand<{}, boolean>;
+    private _loadCommand: ReactiveCommand<{}, Todo[]>;
+    private _deleteCommand: ReactiveCommand<Todo, boolean>;
+    private _toggleTodo: ReactiveCommand<Todo, boolean>;
+    private _addCommand: ReactiveCommand<{}, boolean>;
+    private _editCommand: ReactiveCommand<{}, boolean>;
+    private _undoCommand: ReactiveCommand<{}, boolean>;
+
     private _originalTodo: Todo;
+
+    public get save(): ReactiveCommand<{}, boolean> {
+        return this._saveCommand;
+    }
+    public get loadTodos(): ReactiveCommand<{}, Todo[]> {
+        return this._loadCommand;
+    }
+    
+    public get deleteTodo(): ReactiveCommand<Todo, boolean> {
+        return this._deleteCommand;
+    }
+    public get toggleTodo(): ReactiveCommand<Todo, boolean> {
+        return this._toggleTodo;
+    }
+    public get addTodo(): ReactiveCommand<{}, boolean> {
+        return this._addCommand;
+    }
+    public get edit(): ReactiveCommand<{}, boolean> {
+        return this._editCommand;
+    }
+    public get undo(): ReactiveCommand<{}, boolean> {
+        return this._undoCommand;
+    }
 
     /**
      * Gets the array of TODOs that are being presented by this view model.
@@ -85,22 +108,20 @@ export class TodoViewModel extends ReactiveObject {
         this.newTodo = new Todo();
 
         this._saveCommand = ReactiveCommand.createFromTask((a) => {
-            if (this.editedTodo) {
-                this.todos.push(this.editedTodo);
-                this.editedTodo = null;
-            }
             return this._store.putTodos(this.todos);
         });
+        
+        var isNotSaving = this.save.isExecuting.map(executing => !executing);
 
         this._loadCommand = ReactiveCommand.createFromTask((a) => {
             return this._store.getTodos();
         });
 
-        this._deleteCommand = ReactiveCommand.createFromObservable((a) => {
+        this._deleteCommand = ReactiveCommand.createFromObservable((a: Todo) => {
             var todoIndex = this.todos.indexOf(a);
             if (todoIndex >= 0) {
                 this.todos.splice(todoIndex, 1);
-                return this._saveCommand.executeAsync();
+                return this.save.executeAsync();
             }
 
             return Observable.of(false);
@@ -108,32 +129,45 @@ export class TodoViewModel extends ReactiveObject {
 
         this._toggleTodo = ReactiveCommand.createFromObservable((todo: Todo) => {
             todo.completed = !todo.completed;
-            return this._saveCommand.executeAsync();
-        });
+            return this.save.executeAsync();
+        }, isNotSaving);
 
-        var canAddTodo = this.whenAnyValue(vm => {
+        var hasValidNewTodo = this.whenAnyValue(vm => {
             return vm.newTodo.title;
         }).map(title => {
             return this.isValidTitle(title)
         });
 
+        var canAddTodo = Observable.combineLatest(
+            hasValidNewTodo, 
+            isNotSaving, 
+            (validTodo, isNotSaving) => {
+                console.log(validTodo, isNotSaving);
+                return validTodo && isNotSaving;
+            });
+
         this._addCommand = ReactiveCommand.createFromObservable((a) => {
+            console.log("Add TODO");
             this.todos.push(this.newTodo);
-            this.resetNewTodo();
-            return this.save();
+            this.resetNewTodo();       
+            return this.save.executeAsync();
         }, canAddTodo);
 
         this._editCommand = ReactiveCommand.createFromObservable(a => {
-            return this.save().do(saved => {
+            if (this.editedTodo) {
+                this.todos.push(this.editedTodo);
+                this.editedTodo = null;
+            }
+            return this.save.executeAsync().do(saved => {
                 if (saved) {
                     this._originalTodo = null;
                     this.editedTodo = null;
                 }
             });
-        });
-        
+        }, isNotSaving);
+
         var canUndo = this.whenAnyValue(vm => vm.editedTodo, vm => vm.todos, (e, todos) => e !== null && todos !== null);
-        
+
         this._undoCommand = ReactiveCommand.create(a => {
             var index = this.todos.indexOf(this.editedTodo);
             this.todos[index] = this._originalTodo;
@@ -145,28 +179,6 @@ export class TodoViewModel extends ReactiveObject {
 
     public resetNewTodo(): Todo {
         return this.newTodo = new Todo();
-    }
-
-    public save(): Observable<boolean> {
-        return this._saveCommand.executeAsync();
-    }
-
-    public deleteTodo(todo: Todo): Observable<boolean> {
-        return this._deleteCommand.executeAsync(todo);
-    }
-
-    public loadTodos(): Observable<Todo[]> {
-        return this._loadCommand.executeAsync();
-    }
-
-    public addTodo(): Observable<boolean> {
-        return this._addCommand.canExecuteNow().filter(canExecute => canExecute).flatMap(canExecute => {
-            return this._addCommand.executeAsync();
-        });
-    }
-
-    public toggleTodo(todo: Todo): Observable<boolean> {
-        return this._toggleTodo.executeAsync(todo);
     }
 
     public editTodo(todo: Todo): void {
