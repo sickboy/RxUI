@@ -38,7 +38,7 @@ export function register() {
                 var viewModel = new TodoViewModel(<any>{});
                 viewModel.todos = [];
                 expect(viewModel.todos.length).to.equal(0);
-                viewModel.addTodo;
+                viewModel.addTodo.invokeAsync().subscribe();
                 expect(viewModel.todos.length).to.equal(0);
             });
             it("should add the newTodo if it has a non-empty title", (done) => {
@@ -49,7 +49,7 @@ export function register() {
                 viewModel.todos = [];
                 viewModel.newTodo.title = "Title";
                 expect(viewModel.todos.length).to.equal(0);
-                viewModel.addTodo.executeAsync().subscribe(result => {
+                viewModel.addTodo.invokeAsync().subscribe(result => {
                     expect(result).to.be.true;
                     expect(viewModel.todos.length).to.equal(1);
                     expect(viewModel.todos[0].title).to.equal("Title");

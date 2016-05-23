@@ -141,13 +141,9 @@ export class TodoViewModel extends ReactiveObject {
         var canAddTodo = Observable.combineLatest(
             hasValidNewTodo, 
             isNotSaving, 
-            (validTodo, isNotSaving) => {
-                console.log(validTodo, isNotSaving);
-                return validTodo && isNotSaving;
-            });
+            (validTodo, isNotSaving) => validTodo && isNotSaving);
 
         this._addCommand = ReactiveCommand.createFromObservable((a) => {
-            console.log("Add TODO");
             this.todos.push(this.newTodo);
             this.resetNewTodo();       
             return this.save.executeAsync();
