@@ -320,9 +320,9 @@ describe("ReactiveObject", () => {
             obj.prop2 = "prop2Value";
             obj.prop3 = "prop3Value";
 
-            // The last parameter's argument type needs to be specified explicitly
-            // to satisfy Typescript's overload matching. 
-            obj.whenAny(o => o.prop1, o => o.prop2, (o: MyObject) => o.prop3)
+            // The last parameter needs to be the map function.
+            // Otherwise the selector functions and map function could not be distinguished.
+            obj.whenAny(o => o.prop1, o => o.prop2, o => o.prop3, (prop1, prop2, prop3) => [prop1, prop2, prop3])
                 .subscribe(events => {
                     expect(events.length).to.equal(3);
                     expect(events[0].propertyName).to.equal("prop1");
@@ -493,7 +493,7 @@ describe("ReactiveObject", () => {
         it("should observe property values for the given property names", (done) => {
             var obj: MyObject = new MyObject();
             
-            obj.whenAnyValue(o => o.prop1, (o: MyObject) => o.prop2).subscribe(values => {
+            obj.whenAnyValue(o => o.prop1, o => o.prop2, (prop1, prop2) => [prop1, prop2]).subscribe(values => {
                 expect(values.length).to.equal(2);
                 expect(values[0]).to.equal("value");
                 expect(values[1]).to.equal("value2");
@@ -549,6 +549,9 @@ describe("ReactiveObject", () => {
                public get prop(): MyOtherObject {
                    return this.get("prop");
                }
+               public set prop(val: MyOtherObject) {
+                   this.set("prop", val);
+               }
                
                // Notice no setting prop to null in the constructor.
            }
@@ -562,8 +565,9 @@ describe("ReactiveObject", () => {
            
            var other = new MyOtherObject();
            other.child = new MyOtherObject();
-           other.child.prop = "value";
-           obj.prop.child = other;
+           other.child.child = new MyOtherObject();
+           other.child.child.prop = "value";
+           obj.prop = other;
         });
     });
 
