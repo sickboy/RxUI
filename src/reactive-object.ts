@@ -1,4 +1,6 @@
-import {Observable, Subject, Subscription} from "rxjs/Rx";
+import {Observable} from "rxjs/Observable";
+import {Subject} from "rxjs/Subject";
+import {Subscription} from "rxjs/Subscription";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
@@ -302,7 +304,7 @@ export class ReactiveObject {
             return this.whenSingle(prop);
         }).filter(o => o != null);
         if (map) {
-            return Observable.combineLatest(...observableList, map);
+            return Observable.combineLatest<TResult>(...observableList, map);
         } else {
             return Observable.combineLatest(...observableList, (...events: PropertyChangedEventArgs<any>[]): any => {
                 if (events.length == 1) {
@@ -484,7 +486,7 @@ export class ReactiveObject {
      * @param command The ReactiveCommand object that should be executed. 
      *                If a property name is passed in, the most recent command stored at that property is used.
      */
-    public invokeCommandWhen<T>(observable: string | Observable<any>, command: string | ReactiveCommand<T>): Observable<T> {
+    public invokeCommandWhen<T>(observable: string | Observable<any>, command: string | ReactiveCommand<any, T>): Observable<T> {
         return invokeCommand(this.when(observable), this, command);
     }
 }

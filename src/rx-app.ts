@@ -1,5 +1,11 @@
 import {Scheduler} from "rxjs/Scheduler";
-import {Scheduler as Schedulers} from "rxjs/Rx";
+import {asap} from "rxjs/scheduler/asap";
+import {queue} from "rxjs/scheduler/queue";
+
+let Schedulers = {
+    asap,
+    queue
+};
 
 /**
  * Defines a class that contains static properties that are useful for a Reactive Application.

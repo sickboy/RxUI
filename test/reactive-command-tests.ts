@@ -8,7 +8,7 @@ import {MyOtherObject} from "./models/my-other-object";
 describe("ReactiveCommand", () => {
     describe(".createFromTask()", () => {
         it("should return a command that resolves with values from the promise", (done) => {
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromTask((a) => {
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromTask((a) => {
                 return Promise.resolve(true);
             });
 
@@ -18,7 +18,7 @@ describe("ReactiveCommand", () => {
             }, err => done(err));
         });
         it("should return a command that resolves with errors from the promise", (done) => {
-            var command: ReactiveCommand<void> = ReactiveCommand.createFromTask((a) => {
+            var command: ReactiveCommand<any, void> = ReactiveCommand.createFromTask((a) => {
                 return Promise.reject("Error");
             });
 
@@ -32,7 +32,7 @@ describe("ReactiveCommand", () => {
             var task: any = (arg) => {
                 throw error;
             };
-            var command: ReactiveCommand<void> = ReactiveCommand.createFromTask<void>(task);
+            var command: ReactiveCommand<any, void> = ReactiveCommand.createFromTask<any, void>(task);
 
             command.executeAsync().take(1).subscribe(null, err => {
                 expect(err).to.equal(error);
@@ -42,7 +42,7 @@ describe("ReactiveCommand", () => {
     });
     describe(".create()", () => {
         it("should return a command that resolves with returned values from the task", (done) => {
-            var command: ReactiveCommand<string> = ReactiveCommand.create((a) => {
+            var command: ReactiveCommand<any, string> = ReactiveCommand.create((a) => {
                 return "value";
             });
 
@@ -54,7 +54,7 @@ describe("ReactiveCommand", () => {
     });
     describe("#canExecute", () => {
         it("should default to false", (done) => {
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty());
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty<boolean>());
 
             command.canExecute.take(1).subscribe(can => {
                 expect(can).to.be.false;
@@ -62,7 +62,7 @@ describe("ReactiveCommand", () => {
             }, err => done(err));
         });
         it("should use what the given canRun observable observes", (done) => {
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(false), Observable.of(true).delay(5));
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(false), Observable.of(true).delay(5));
 
             command.canExecute.bufferTime(10).take(1).subscribe((can: boolean[]) => {
                 expect(can.length).to.equal(2);
@@ -72,7 +72,7 @@ describe("ReactiveCommand", () => {
             }, err => done(err));
         });
         it("should be false while the command is executing", (done) => {
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => {
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => {
                 return Observable.of(false);
             }, Observable.of(true));
 
@@ -90,7 +90,7 @@ describe("ReactiveCommand", () => {
 
     describe("#isExecuting", () => {
         it("should default to false", (done) => {
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty());
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty<boolean>());
 
             command.isExecuting.take(1).subscribe(executing => {
                 expect(executing).to.be.false;
@@ -98,7 +98,7 @@ describe("ReactiveCommand", () => {
             }, err => done(err));
         });
         it("should be true while the command is executing", (done) => {
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.of(true));
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.of(true));
 
             command.isExecuting.bufferCount(3).take(1).subscribe((executing: boolean[]) => {
                 expect(executing.length).to.equal(3);
@@ -118,7 +118,7 @@ describe("ReactiveCommand", () => {
                 expect(actual).to.deep.equal(expected);
             });
 
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.of(true), scheduler);
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.of(true), scheduler);
 
             var work = result => {
                 expect(result).to.be.true;
@@ -134,7 +134,7 @@ describe("ReactiveCommand", () => {
             done();
         });
         it("should pipe errors from the task's observable to the subscribers", (done) => {
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable(a => Observable.create(sub => sub.error("error")));
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable<any, boolean>(a => Observable.create(sub => sub.error("error")));
 
             command.executeAsync().bufferCount(1).take(1).subscribe(null, err => {
                 expect(err).to.not.be.null;
@@ -147,7 +147,7 @@ describe("ReactiveCommand", () => {
             var task: any = (arg) => {
                 throw error;
             };
-            var command: ReactiveCommand<boolean> = ReactiveCommand.createFromObservable<boolean>(task);
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable<any, boolean>(task);
 
             command.executeAsync().bufferCount(1).take(1).subscribe(null, err => {
                 expect(err).to.equal(error);
@@ -156,7 +156,7 @@ describe("ReactiveCommand", () => {
         });
         it("should call the task only once for multiple subscribers", (done) => {
             var num = 0;
-            var command: ReactiveCommand<number> = ReactiveCommand.create(a => {
+            var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
                 return ++num;
             });
 
@@ -174,9 +174,24 @@ describe("ReactiveCommand", () => {
         });
     });
     
+    describe("#executeAsync(arg)", () => {
+       it("should pass the given argument to the command", (done) => {
+           class MyClass {
+               public num: number;
+           }
+           var command: ReactiveCommand<MyClass, MyClass> = ReactiveCommand.create((a: MyClass) => a);
+           var arg = new MyClass();
+           arg.num = 42;
+           command.executeAsync(arg).first().subscribe(ret => {
+               expect(ret).to.equal(arg);
+               done();
+           });
+       });
+    });
+    
     describe("#invokeAsync()", () => {
         it("should not run the command when canExecute is false", (done) => {
-            var command: ReactiveCommand<number> = ReactiveCommand.create(a => {
+            var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
                 return 42;
             }, Observable.of(false));
             var hit: boolean = false;
@@ -188,7 +203,7 @@ describe("ReactiveCommand", () => {
             });
         });
         it("should run the command when canExecute is true", (done) => {
-            var command: ReactiveCommand<number> = ReactiveCommand.create(a => {
+            var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
                 return 42;
             }, Observable.of(true));
             var hit: boolean = false;
@@ -204,7 +219,7 @@ describe("ReactiveCommand", () => {
     describe("#canExecuteNow()", () => {
         it("should resolve with the latest value seen by canExecute", (done) => {
             var canExecute = new Subject<boolean>();
-            var command: ReactiveCommand<number> = ReactiveCommand.create(a => {
+            var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
                 return 42;
             }, canExecute);
             
@@ -222,7 +237,7 @@ describe("ReactiveCommand", () => {
         });
         it("should resolve with a single value and complete", (done) => {
             var observedValue: boolean = false;
-            var command: ReactiveCommand<number> = ReactiveCommand.create(a => {
+            var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
                 return 42;
             }, Observable.of(false));
             

@@ -37,7 +37,11 @@ build:
       name: Install Mocha
       code: |
         sudo npm install -g mocha
-    - npm-install:
+    - script:
       name: Install Deps
-    - npm-test:
+      code: |
+        npm install
+    - script:
       name: Test RxUI
+      code: |
+        npm test

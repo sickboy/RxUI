@@ -7,7 +7,7 @@ import {RxApp} from "./rx-app";
 /**
  * Defines a class that represents a command that can run operations in the background.
  */
-export class ReactiveCommand<TResult> {
+export class ReactiveCommand<TArgs, TResult> {
 
     private subject: Subject<TResult>;
     private executing: Subject<boolean>;
@@ -36,7 +36,7 @@ export class ReactiveCommand<TResult> {
      * @param task A function that returns an observable that represents the asynchronous operation.
      * @param scheduler The scheduler that all of the results should be observed on.
      */
-    constructor(private task: (args) => Observable<TResult>, private canRun: Observable<boolean>, private scheduler: Scheduler) {
+    constructor(private task: (args: TArgs) => Observable<TResult>, private canRun: Observable<boolean>, private scheduler: Scheduler) {
         if (!task) {
             throw new Error("The task parameter must be supplied");
         }
@@ -84,8 +84,8 @@ export class ReactiveCommand<TResult> {
      * @param canRun An Observable whose stream of values determine whether the command is allowed to run at a certain time.
      * @param scheduler The scheduler that all of the results from the task should be observed on.
      */
-    public static create<TResult>(task: (args) => (TResult | void), canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {
-        return new ReactiveCommand((args) => {
+    public static create<TArgs, TResult>(task: (args: TArgs) => (TResult | void), canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TArgs, TResult> {
+        return new ReactiveCommand<TArgs, TResult>((args) => {
             var result = task(args);
             if(typeof result !== "undefined") {
                 return Observable.of(result);
@@ -102,8 +102,8 @@ export class ReactiveCommand<TResult> {
      * @param canRun An Observable whose stream of values determine whether the command is allowed to run at a certain time.
      * @param scheduler The scheduler that all of the results from the task should be observed on.
      */
-    public static createFromTask<TResult>(task: (args) => Promise<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {
-        return new ReactiveCommand((args) => Observable.fromPromise(task(args)), ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
+    public static createFromTask<TArgs, TResult>(task: (args: TArgs) => Promise<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TArgs, TResult> {
+        return new ReactiveCommand<TArgs, TResult>((args) => Observable.fromPromise(task(args)), ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
     }
 
     /**
@@ -112,15 +112,15 @@ export class ReactiveCommand<TResult> {
      * @param canRun An Observable whose stream of values determine whether the command is allowed to run at a certain time.
      * @param scheduler The scheduler that all of the results from the task should be observed on.
      */
-    public static createFromObservable<TResult>(task: (args) => Observable<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TResult> {
-        return new ReactiveCommand(task, ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
+    public static createFromObservable<TArgs, TResult>(task: (args: TArgs) => Observable<TResult>, canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TArgs, TResult> {
+        return new ReactiveCommand<TArgs, TResult>(task, ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
     }
 
     /**
      * Executes this command asynchronously.
      * Note that this method does not check whether the command is currently executable.
      */
-    public executeAsync(arg: any = null): Observable<TResult> {
+    public executeAsync(arg: TArgs = null): Observable<TResult> {
         this.executing.next(true);
         var o = null;
         var observable = Observable.create(sub => {
@@ -151,7 +151,7 @@ export class ReactiveCommand<TResult> {
     /**
      * Executes this command asynchronously if the latest observed value from canExecute is true.
      */
-    public invokeAsync(arg: any = null): Observable<TResult> {
+    public invokeAsync(arg: TArgs = null): Observable<TResult> {
         return this.canExecuteNow().filter(canExecute => canExecute).flatMap(c => {
             return this.executeAsync(arg);
         });
