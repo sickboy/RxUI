@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
+		module.exports = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("harmony-reflect"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
 	else if(typeof define === 'function' && define.amd)
-		define(["rxjs/Observable", "rxjs/Subject", "rxjs/scheduler/asap", "rxjs/scheduler/queue"], factory);
+		define(["rxjs/Observable", "rxjs/Subject", "harmony-reflect", "rxjs/scheduler/asap", "rxjs/scheduler/queue"], factory);
 	else if(typeof exports === 'object')
-		exports["RxUI"] = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
+		exports["RxUI"] = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("harmony-reflect"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
 	else
-		root["RxUI"] = factory(root["rxjs/Observable"], root["rxjs/Subject"], root["rxjs/scheduler/asap"], root["rxjs/scheduler/queue"]);
-})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_3__, __WEBPACK_EXTERNAL_MODULE_9__, __WEBPACK_EXTERNAL_MODULE_10__) {
+		root["RxUI"] = factory(root["rxjs/Observable"], root["rxjs/Subject"], root["harmony-reflect"], root["rxjs/scheduler/asap"], root["rxjs/scheduler/queue"]);
+})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_3__, __WEBPACK_EXTERNAL_MODULE_7__, __WEBPACK_EXTERNAL_MODULE_10__, __WEBPACK_EXTERNAL_MODULE_11__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -60,8 +60,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	__export(__webpack_require__(1));
 	__export(__webpack_require__(4));
-	__export(__webpack_require__(7));
 	__export(__webpack_require__(8));
+	__export(__webpack_require__(9));
 	__export(__webpack_require__(6));
 	//# sourceMappingURL=main.js.map
 
@@ -74,6 +74,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Subject_1 = __webpack_require__(3);
 	var property_changed_event_args_1 = __webpack_require__(4);
 	var invoke_command_1 = __webpack_require__(6);
+	__webpack_require__(7);
 	/**
 	 * Defines a class that represents a reactive object.
 	 * This is the base class for View Model classes, and it implements an event system that
@@ -130,38 +131,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	     */
 	    ReactiveObject.prototype.evaluateLambdaExpression = function (expr) {
 	        var path = [];
-	        var ghost = this.buildGhostObject(path, this);
+	        var ghost = this.buildGhostObject(path);
 	        expr(ghost);
 	        return path.join(".");
 	    };
-	    ReactiveObject.prototype.buildGhostObject = function (arr, obj) {
-	        if (!obj || typeof obj !== "object" || obj.__data === null) {
-	            return null;
-	        }
-	        else {
-	            var vm = {};
-	            var builder = this;
-	            function declareProperty(currentGhost, propertyName) {
-	                Object.defineProperty(currentGhost, propertyName, {
-	                    get: function () {
-	                        arr.push(propertyName);
-	                        return builder.buildGhostObject(arr, obj.__data[propertyName]);
-	                    }
-	                });
-	            }
-	            for (var prop in obj.__data) {
-	                // underscored properties should be ignored, because they are private
-	                if (prop.indexOf("_") !== 0) {
-	                    var val = obj.__data[prop];
-	                    var type = typeof val;
-	                    var ghost = {};
-	                    if (type !== "function" && type !== "undefined") {
-	                        declareProperty(vm, prop);
-	                    }
+	    ReactiveObject.prototype.buildGhostObject = function (arr) {
+	        function buildProxy() {
+	            return new Proxy({}, {
+	                get: function (target, prop, reciever) {
+	                    arr.push(prop);
+	                    return buildProxy();
 	                }
-	            }
-	            return vm;
+	            });
 	        }
+	        return buildProxy();
 	    };
 	    /**
 	     * Gets an observable that resolves with the related property changed event whenever the given property updates.
@@ -195,24 +178,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var propertiesWithoutFirst = prop.substring(firstProp.length + 1);
 	            // Get the object/value that is at the "first" key of this object.
 	            var firstChild = this.get(firstProp);
-	            if (typeof firstChild.whenSingle === "function") {
-	                // Watch for changes to the "first" property on this object,
-	                // and subscribe to the rest of the properties on that object.
-	                // Switch between the observed values, so that only the most recent object graph
-	                // property changes are observed.
-	                // Store the number of times that the property has been changed at this level.
-	                // This way, we can be sure about whether to emit the current value or not, based on whether
-	                // we have observed 2 or more events at this level.
-	                var observationCount = 0;
-	                return this.whenSingle(firstProp, true).map(function (change) {
-	                    var obj = change.newPropertyValue;
-	                    observationCount++;
+	            // Watch for changes to the "first" property on this object,
+	            // and subscribe to the rest of the properties on that object.
+	            // Switch between the observed values, so that only the most recent object graph
+	            // property changes are observed.
+	            // Store the number of times that the property has been changed at this level.
+	            // This way, we can be sure about whether to emit the current value or not, based on whether
+	            // we have observed 2 or more events at this level.
+	            var observationCount = 0;
+	            return this.whenSingle(firstProp, true).map(function (change) {
+	                var obj = change.newPropertyValue;
+	                observationCount++;
+	                if (obj && typeof obj.whenSingle !== "function") {
+	                    throw new Error("Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '" + firstProp + "', is not a Reactive Object when it should be.");
+	                }
+	                else if (obj !== null && typeof obj !== "undefined") {
 	                    return obj.whenSingle(propertiesWithoutFirst, emitCurrentVal || observationCount > 1);
-	                }).switch();
-	            }
-	            else {
-	                throw new Error("Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '" + firstProp + "', is not a Reactive Object when it should be.");
-	            }
+	                }
+	                else if (emitCurrentVal) {
+	                    return Observable_1.Observable.of(change);
+	                }
+	                else {
+	                    return Observable_1.Observable.empty();
+	                }
+	            }).switch();
 	        }
 	    };
 	    /**
@@ -265,15 +254,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var mapFunction = null;
 	        var lastArg = values[values.length - 1];
 	        if (values.length > 1 && typeof lastArg === "function") {
-	            try {
-	                var propName = this.evaluateLambdaExpression(lastArg);
-	                if (!propName || typeof propName !== "string") {
-	                    mapFunction = lastArg;
-	                }
-	            }
-	            catch (ex) {
-	                mapFunction = lastArg;
-	            }
+	            mapFunction = lastArg;
 	        }
 	        return mapFunction;
 	    };
@@ -465,9 +446,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    })
 	        .filter(function (o) { return o.canExecute && o.command != null; })
 	        .distinctUntilChanged()
-	        .map(function (o) {
+	        .flatMap(function (o) {
 	        return o.command.executeAsync(o.observedValue);
-	    }).merge();
+	    });
 	    return results;
 	}
 	exports.invokeCommand = invokeCommand;
@@ -475,12 +456,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 7 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_7__;
+
+/***/ },
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	var Observable_1 = __webpack_require__(2);
 	var Subject_1 = __webpack_require__(3);
-	var rx_app_1 = __webpack_require__(8);
+	var rx_app_1 = __webpack_require__(9);
 	/**
 	 * Defines a class that represents a command that can run operations in the background.
 	 */
@@ -653,12 +640,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=reactive-command.js.map
 
 /***/ },
-/* 8 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var asap_1 = __webpack_require__(9);
-	var queue_1 = __webpack_require__(10);
+	var asap_1 = __webpack_require__(10);
+	var queue_1 = __webpack_require__(11);
 	var Schedulers = {
 	    asap: asap_1.asap,
 	    queue: queue_1.queue
@@ -695,16 +682,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=rx-app.js.map
 
 /***/ },
-/* 9 */
-/***/ function(module, exports) {
-
-	module.exports = __WEBPACK_EXTERNAL_MODULE_9__;
-
-/***/ },
 /* 10 */
 /***/ function(module, exports) {
 
 	module.exports = __WEBPACK_EXTERNAL_MODULE_10__;
+
+/***/ },
+/* 11 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_11__;
 
 /***/ }
 /******/ ])

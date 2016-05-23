@@ -1,4 +1,5 @@
 import {ReactiveCommand} from "../src/reactive-command";
+import {ReactiveObject} from "../src/reactive-object";
 import {TestScheduler} from "rxjs/testing/TestScheduler";
 import {Observable, Subject} from "rxjs/Rx";
 import {expect} from "chai";
@@ -76,7 +77,7 @@ describe("ReactiveCommand", () => {
                 return Observable.of(false);
             }, Observable.of(true));
 
-            command.canExecute.bufferCount(3).take(1).subscribe((can: boolean[]) => {
+            command.canExecute.bufferTime(10).take(1).subscribe((can: boolean[]) => {
                 expect(can.length).to.equal(3);
                 expect(can[0]).to.be.true;
                 expect(can[1]).to.be.false; // Cannot Execute While Running. 
@@ -84,7 +85,66 @@ describe("ReactiveCommand", () => {
                 done();
             }, err => done(err));
 
-            command.executeAsync(null);
+            command.executeAsync(null).subscribe();
+        });
+        it("should not cause the command to be executed twice when the condition changes during execution", (done) => {
+            class MyInnerClass extends ReactiveObject {
+                constructor() {
+                    super();
+                    this.prop = "";
+                }
+                
+                public get prop(): string {
+                    return this.get("prop");
+                }
+                public set prop(val: string) {
+                    this.set("prop", val);
+                }
+            }
+            class MyClass extends ReactiveObject {
+                constructor() {
+                    super();
+                    this.value = new MyInnerClass(); 
+                }
+                public get value(): MyInnerClass {
+                    var val = this.get("value");
+                    if (!val) {
+                        val = new MyInnerClass();
+                        this.value = val;
+                    }
+                    return val;
+                }
+                public set value(val: MyInnerClass) {
+                    this.set("value", val);
+                }
+            }
+            var obj: MyClass = new MyClass();
+            var innerCommand = ReactiveCommand.create((a) => {
+                return obj.value.prop;
+            });
+            var isValid = obj.whenAnyValue(vm => vm.value.prop).map(c => {
+                return !!c.trim();
+            });
+            var canExecute = Observable.combineLatest(
+                isValid,
+                innerCommand.isExecuting.map(ie => !ie),
+                (valid, notRunning) => {
+                    console.log(valid, notRunning);
+                    return valid && notRunning
+                }
+            )
+            var count: number = 0;
+            var command: ReactiveCommand<any, any> = ReactiveCommand.createFromObservable((a) => {
+                console.log("hit");
+                count++;
+                obj.value = new MyInnerClass();
+                return innerCommand.executeAsync();
+            }, canExecute);
+            obj.value.prop = "Custom";
+            command.executeAsync().subscribe(() => {
+                expect(count).to.equal(1);
+                done();
+            }, err => done(err));
         });
     });
 
@@ -108,7 +168,7 @@ describe("ReactiveCommand", () => {
                 done();
             });
 
-            command.executeAsync(null);
+            command.executeAsync(null).subscribe();
         });
     });
 
@@ -122,14 +182,14 @@ describe("ReactiveCommand", () => {
 
             var work = result => {
                 expect(result).to.be.true;
-                done();
             };
 
             var sub = command.executeAsync().subscribe(work);
 
             // Expect two actions to be scheduled.
-            // One for the results of the execution, one for the results of the command. 
-            expect(scheduler.actions.length).to.equal(2);
+            // One for the results of the execution, one for the results of the command, and one for the exceptions
+            // that the command emits.
+            expect(scheduler.actions.length).to.equal(3);
             sub.unsubscribe();
             done();
         });
@@ -160,35 +220,35 @@ describe("ReactiveCommand", () => {
                 return ++num;
             });
 
-            command.executeAsync().subscribe(n => {
+            var observable = command.executeAsync();
+            var first = observable.subscribe(n => {
                 expect(n).to.equal(1);
-                command.executeAsync().subscribe(n => {
-                    try {
-                        expect(n).to.equal(2);
-                        done();
-                    } catch (ex) {
-                        done(ex);
-                    }
-                }, err => done(err));
             }, err => done(err));
+
+            // The result can be observed multiple times
+            var second = observable.subscribe(n => {
+                expect(n).to.equal(1);
+            }, err => done(err));
+
+            done();
         });
     });
-    
+
     describe("#executeAsync(arg)", () => {
-       it("should pass the given argument to the command", (done) => {
-           class MyClass {
-               public num: number;
-           }
-           var command: ReactiveCommand<MyClass, MyClass> = ReactiveCommand.create((a: MyClass) => a);
-           var arg = new MyClass();
-           arg.num = 42;
-           command.executeAsync(arg).first().subscribe(ret => {
-               expect(ret).to.equal(arg);
-               done();
-           });
-       });
+        it("should pass the given argument to the command", (done) => {
+            class MyClass {
+                public num: number;
+            }
+            var command: ReactiveCommand<MyClass, MyClass> = ReactiveCommand.create((a: MyClass) => a);
+            var arg = new MyClass();
+            arg.num = 42;
+            command.executeAsync(arg).first().subscribe(ret => {
+                expect(ret).to.equal(arg);
+                done();
+            });
+        });
     });
-    
+
     describe("#invokeAsync()", () => {
         it("should not run the command when canExecute is false", (done) => {
             var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
@@ -215,18 +275,18 @@ describe("ReactiveCommand", () => {
             });
         });
     });
-    
+
     describe("#canExecuteNow()", () => {
         it("should resolve with the latest value seen by canExecute", (done) => {
             var canExecute = new Subject<boolean>();
             var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
                 return 42;
             }, canExecute);
-            
+
             command.canExecuteNow().subscribe(can => {
-               expect(can).to.be.false;
+                expect(can).to.be.false;
                 canExecute.next(true);
-                
+
                 // Test multiple successive calls resolve with the repeated value 
                 command.canExecuteNow().combineLatest(command.canExecuteNow(), (first, second) => [first, second]).subscribe(c => {
                     expect(c[0]).to.be.true;
@@ -240,14 +300,14 @@ describe("ReactiveCommand", () => {
             var command: ReactiveCommand<any, number> = ReactiveCommand.create(a => {
                 return 42;
             }, Observable.of(false));
-            
+
             command.canExecuteNow().subscribe(can => {
-               observedValue = can;
+                observedValue = can;
             }, err => done(err), () => {
                 expect(observedValue).to.be.false;
                 done();
             });
-        });        
+        });
     });
 
     it("should not hang when using canRun and an observable built from whenAnyValue", (done) => {
