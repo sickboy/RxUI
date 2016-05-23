@@ -17,7 +17,7 @@ export function invokeCommand<TObj extends ReactiveObject, TArg, TResult>(source
     if (typeof command === "string") {
         // Make sure that the current command is observed
         commandObservable = obj.whenSingle(command, true).map(e => e.newPropertyValue);
-        canExecute = commandObservable.map(c => c.canExecute).switch<boolean>();
+        canExecute = commandObservable.map(c => c.canExecute).switch();
     } else {
         commandObservable = Observable.of(command);
         canExecute = command.canExecute;
@@ -32,8 +32,8 @@ export function invokeCommand<TObj extends ReactiveObject, TArg, TResult>(source
         })
         .filter(o => o.canExecute && o.command != null)
         .distinctUntilChanged()
-        .map(o => {
+        .flatMap(o => {
             return o.command.executeAsync(o.observedValue);
-        }).merge();
+        });
     return results;
 }

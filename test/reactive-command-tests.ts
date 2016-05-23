@@ -54,7 +54,7 @@ describe("ReactiveCommand", () => {
     });
     describe("#canExecute", () => {
         it("should default to false", (done) => {
-            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty());
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty<boolean>());
 
             command.canExecute.take(1).subscribe(can => {
                 expect(can).to.be.false;
@@ -90,7 +90,7 @@ describe("ReactiveCommand", () => {
 
     describe("#isExecuting", () => {
         it("should default to false", (done) => {
-            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty());
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable((a) => Observable.of(true), Observable.empty<boolean>());
 
             command.isExecuting.take(1).subscribe(executing => {
                 expect(executing).to.be.false;
@@ -134,7 +134,7 @@ describe("ReactiveCommand", () => {
             done();
         });
         it("should pipe errors from the task's observable to the subscribers", (done) => {
-            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable(a => Observable.create(sub => sub.error("error")));
+            var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable<any, boolean>(a => Observable.create(sub => sub.error("error")));
 
             command.executeAsync().bufferCount(1).take(1).subscribe(null, err => {
                 expect(err).to.not.be.null;

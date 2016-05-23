@@ -304,7 +304,7 @@ export class ReactiveObject {
             return this.whenSingle(prop);
         }).filter(o => o != null);
         if (map) {
-            return Observable.combineLatest(...observableList, map);
+            return Observable.combineLatest<TResult>(...observableList, map);
         } else {
             return Observable.combineLatest(...observableList, (...events: PropertyChangedEventArgs<any>[]): any => {
                 if (events.length == 1) {
