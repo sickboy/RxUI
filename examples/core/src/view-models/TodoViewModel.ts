@@ -16,7 +16,9 @@ export class TodoViewModel extends ReactiveObject {
     private _addCommand: ReactiveCommand<{}, boolean>;
     private _editCommand: ReactiveCommand<{}, boolean>;
     private _undoCommand: ReactiveCommand<{}, boolean>;
-
+    private _markAllComplete: ReactiveCommand<{}, boolean>;
+    private _markAllIncomplete: ReactiveCommand<{}, boolean>;
+    private _toggleAllComplete: ReactiveCommand<{}, boolean>;
     private _originalTodo: Todo;
 
     public get save(): ReactiveCommand<{}, boolean> {
@@ -25,7 +27,6 @@ export class TodoViewModel extends ReactiveObject {
     public get loadTodos(): ReactiveCommand<{}, Todo[]> {
         return this._loadCommand;
     }
-    
     public get deleteTodo(): ReactiveCommand<Todo, boolean> {
         return this._deleteCommand;
     }
@@ -41,6 +42,24 @@ export class TodoViewModel extends ReactiveObject {
     public get undo(): ReactiveCommand<{}, boolean> {
         return this._undoCommand;
     }
+    public get markAllComplete(): ReactiveCommand<{}, boolean> {
+        return this._markAllComplete;
+    }
+    public get markAllIncomplete(): ReactiveCommand<{}, boolean> {
+        return this._markAllIncomplete;
+    }
+    public get toggleAllComplete(): ReactiveCommand<{}, boolean> {
+        return this._toggleAllComplete;
+    }
+
+    public get completedTodos(): Todo[] {
+        return this.get("completedTodos");
+    }
+    public get incompleteTodos(): Todo[] {
+        return this.get("incompleteTodos");
+    }
+    
+    public areAllTodosComplete: Observable<boolean>;
 
     /**
      * Gets the array of TODOs that are being presented by this view model.
@@ -96,6 +115,10 @@ export class TodoViewModel extends ReactiveObject {
         return this.whenAnyValue(vm => vm.editedTodo).map(todo => todo != null);
     }
 
+    /**
+     * Determines whether the given title is a valid TODO Title.
+     * @param title The title that should be evaluated.
+     */
     private isValidTitle(title: string): boolean {
         var valid = !!title.trim();
         return valid;
@@ -106,16 +129,28 @@ export class TodoViewModel extends ReactiveObject {
         this._store = todoStore;
         this.editedTodo = null;
         this.newTodo = new Todo();
+        this.set("completedTodos", []);
+        this.set("incompleteTodos", []);
+        this.todos = [];
 
         this._saveCommand = ReactiveCommand.createFromTask((a) => {
             return this._store.putTodos(this.todos);
         });
-        
+
         var isNotSaving = this.save.isExecuting.map(executing => !executing);
 
         this._loadCommand = ReactiveCommand.createFromTask((a) => {
             return this._store.getTodos();
         });
+        this.loadTodos.results.subscribe(todos => {
+            this.todos = todos;
+        });
+        this.whenAnyValue(vm => vm.todos)
+            .map(todos => todos.filter(t => t.completed))
+            .subscribe(completed => this.set("completedTodos", completed));
+        this.whenAnyValue(vm => vm.todos)
+            .map(todos => todos.filter(t => !t.completed))
+            .subscribe(incomplete => this.set("incompleteTodos", incomplete));
 
         this._deleteCommand = ReactiveCommand.createFromObservable((a: Todo) => {
             var todoIndex = this.todos.indexOf(a);
@@ -139,13 +174,13 @@ export class TodoViewModel extends ReactiveObject {
         });
 
         var canAddTodo = Observable.combineLatest(
-            hasValidNewTodo, 
-            isNotSaving, 
+            hasValidNewTodo,
+            isNotSaving,
             (validTodo, isNotSaving) => validTodo && isNotSaving);
 
         this._addCommand = ReactiveCommand.createFromObservable((a) => {
             this.todos.push(this.newTodo);
-            this.resetNewTodo();       
+            this.resetNewTodo();
             return this.save.executeAsync();
         }, canAddTodo);
 
@@ -171,6 +206,40 @@ export class TodoViewModel extends ReactiveObject {
             this.editedTodo = null;
             return true;
         }, canUndo);
+
+        var areAllComplete = this.whenAnyValue(vm => vm.todos)
+            .map(todos => todos.every(t => t.completed));
+        var hasTodos = this.whenAnyValue(vm => vm.todos)
+            .map(todos => todos.length > 0);
+        var canMarkAllComplete = Observable.combineLatest(hasTodos, areAllComplete, isNotSaving, (hasTodos, complete, notSaving) => hasTodos && !complete && notSaving);
+        var canMarkAllIncomplete = Observable.combineLatest(hasTodos, areAllComplete, isNotSaving, (hasTodos, complete, notSaving) => hasTodos && complete && notSaving);
+        
+        this._markAllComplete = ReactiveCommand.createFromObservable(a => {
+            var completedTodos = this.todos;
+            completedTodos.forEach(t => {
+                t.completed = true;
+            });
+            this.todos = completedTodos;
+            return this.save.executeAsync();
+        }, canMarkAllComplete);
+        this._markAllIncomplete = ReactiveCommand.createFromObservable(a => {
+            var incompleteTodos = this.todos;
+            incompleteTodos.forEach(t => {
+                t.completed = false;
+            });
+            this.todos = incompleteTodos;
+            return this.save.executeAsync();
+        }, canMarkAllIncomplete);
+        this._toggleAllComplete = ReactiveCommand.createFromObservable(a => {
+           var allComplete = this.todos.every(t => t.completed);
+           if(allComplete) {
+               return this.markAllIncomplete.executeAsync();
+           } else {
+               return this.markAllComplete.executeAsync();
+           }
+        }, isNotSaving);        
+        
+        this.areAllTodosComplete = Observable.combineLatest(hasTodos, areAllComplete, (hasTodos, complete) => hasTodos && complete);
     }
 
     public resetNewTodo(): Todo {
