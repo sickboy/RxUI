@@ -1,5 +1,5 @@
 /// <reference path="../references.d.ts" />
-import {Observable} from "rxjs/Rx";
+import {Observable, Subscription} from "rxjs/Rx";
 import {ReactiveObject} from "../src/reactive-object";
 import {ReactiveCommand} from "../src/reactive-command";
 import {PropertyChangedEventArgs} from "../src/events/property-changed-event-args";
@@ -663,6 +663,17 @@ describe("ReactiveObject", () => {
             }, err => done(err));
 
             obj.get("child").get("child2").get("child3").get("child4").set("prop", "value");
+        });
+    });
+    
+    describe("#bind(view, prop, prop)", () => {
+        it("should return a subscription", () => {
+            var vm = new MyObject();
+            var view = {
+                prop: "string"
+            };
+            var ret = vm.bind(view, vm => vm.prop1, view => view.prop);
+            expect(ret).to.be.instanceOf(Subscription);
         });
     });
 });

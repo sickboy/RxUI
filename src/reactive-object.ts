@@ -448,6 +448,24 @@ export class ReactiveObject {
         });
     }
 
+    /**
+     * Binds the specified property on this object to the specified property on the given other object.
+     * @param view The view whose property should be bound to one of this object's properties.
+     * @param viewModelProp A function that maps this object to the property that should be bound to the view. Alternatively, a string can be used to point out the property.
+     * @param viewProp A function that maps the view to the property that should be bound to this object. Alternatively, a string can be used. 
+     */
+    public bind<TView, TViewModelProp, TViewProp>(
+        view: TView,
+        viewModelProp: (((o: this) => TViewModelProp) | string),
+        viewProp: (((o: TView) => TViewProp) | string)
+    ): Subscription {
+        var didViewModelChange = Observable.merge(
+            this.whenAnyValue(viewModelProp).map(v => true)
+        );
+
+        return didViewModelChange.subscribe();
+    }
+
     public when<T>(observable: string | Observable<T>): Observable<T> {
         if (typeof observable === "string") {
             return this.whenSingle(observable, true).map(e => <Observable<T>>e.newPropertyValue).switch();
