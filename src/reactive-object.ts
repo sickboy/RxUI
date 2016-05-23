@@ -1,4 +1,6 @@
-import {Observable, Subject, Subscription} from "rxjs/Rx";
+import {Observable} from "rxjs/Observable";
+import {Subject} from "rxjs/Subject";
+import {Subscription} from "rxjs/Subscription";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
