@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require(undefined), require("rxjs/Observable"), require("rxjs/Subject"));
+		module.exports = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
 	else if(typeof define === 'function' && define.amd)
-		define(["rxjs/Rx", "rxjs/Observable", "rxjs/Subject"], factory);
+		define(["rxjs/Observable", "rxjs/Subject", "rxjs/scheduler/asap", "rxjs/scheduler/queue"], factory);
 	else if(typeof exports === 'object')
-		exports["RxUI"] = factory(require("rxjs/Rx"), require("rxjs/Observable"), require("rxjs/Subject"));
+		exports["RxUI"] = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
 	else
-		root["RxUI"] = factory(root["Rx"], root["rxjs/Observable"], root["rxjs/Subject"]);
-})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_6__, __WEBPACK_EXTERNAL_MODULE_8__) {
+		root["RxUI"] = factory(root["rxjs/Observable"], root["rxjs/Subject"], root["rxjs/scheduler/asap"], root["rxjs/scheduler/queue"]);
+})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_3__, __WEBPACK_EXTERNAL_MODULE_9__, __WEBPACK_EXTERNAL_MODULE_10__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -59,10 +59,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 	}
 	__export(__webpack_require__(1));
-	__export(__webpack_require__(3));
+	__export(__webpack_require__(4));
 	__export(__webpack_require__(7));
-	__export(__webpack_require__(9));
-	__export(__webpack_require__(5));
+	__export(__webpack_require__(8));
+	__export(__webpack_require__(6));
 	//# sourceMappingURL=main.js.map
 
 /***/ },
@@ -70,9 +70,10 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Rx_1 = __webpack_require__(2);
-	var property_changed_event_args_1 = __webpack_require__(3);
-	var invoke_command_1 = __webpack_require__(5);
+	var Observable_1 = __webpack_require__(2);
+	var Subject_1 = __webpack_require__(3);
+	var property_changed_event_args_1 = __webpack_require__(4);
+	var invoke_command_1 = __webpack_require__(6);
 	/**
 	 * Defines a class that represents a reactive object.
 	 * This is the base class for View Model classes, and it implements an event system that
@@ -83,7 +84,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * Creates a new reactive object.
 	     */
 	    function ReactiveObject() {
-	        this._propertyChanged = new Rx_1.Subject();
+	        this._propertyChanged = new Subject_1.Subject();
 	        this.__data = {};
 	    }
 	    Object.defineProperty(ReactiveObject.prototype, "propertyChanged", {
@@ -181,7 +182,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                return e.propertyName == prop;
 	            });
 	            if (emitCurrentVal) {
-	                return Rx_1.Observable.of(this.createPropertyChangedEventArgs(prop, this.get(prop))).concat(observable);
+	                return Observable_1.Observable.of(this.createPropertyChangedEventArgs(prop, this.get(prop))).concat(observable);
 	            }
 	            else {
 	                return observable;
@@ -243,10 +244,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	            return _this.whenSingle(prop);
 	        }).filter(function (o) { return o != null; });
 	        if (map) {
-	            return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([map]));
+	            return Observable_1.Observable.combineLatest.apply(Observable_1.Observable, observableList.concat([map]));
 	        }
 	        else {
-	            return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([function () {
+	            return Observable_1.Observable.combineLatest.apply(Observable_1.Observable, observableList.concat([function () {
 	                var events = [];
 	                for (var _i = 0; _i < arguments.length; _i++) {
 	                    events[_i - 0] = arguments[_i];
@@ -340,6 +341,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 3 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_3__;
+
+/***/ },
+/* 4 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -348,7 +355,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    function __() { this.constructor = d; }
 	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 	};
-	var event_args_1 = __webpack_require__(4);
+	var event_args_1 = __webpack_require__(5);
 	/**
 	 * Defines a class that represents the arguments for events that notify when properties change.
 	 */
@@ -391,7 +398,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=property-changed-event-args.js.map
 
 /***/ },
-/* 4 */
+/* 5 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -422,11 +429,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=event-args.js.map
 
 /***/ },
-/* 5 */
+/* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Observable_1 = __webpack_require__(6);
+	var Observable_1 = __webpack_require__(2);
 	/**
 	 * Creates a new cold observable that maps values observed from the source Observable to values resolved from a ReactiveCommand.
 	 * Essentially, this means that the command is executed whenever the source Observable resolves a new value, so long as the command is executable at the moment.
@@ -467,19 +474,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=invoke-command.js.map
 
 /***/ },
-/* 6 */
-/***/ function(module, exports) {
-
-	module.exports = __WEBPACK_EXTERNAL_MODULE_6__;
-
-/***/ },
 /* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Observable_1 = __webpack_require__(6);
-	var Subject_1 = __webpack_require__(8);
-	var rx_app_1 = __webpack_require__(9);
+	var Observable_1 = __webpack_require__(2);
+	var Subject_1 = __webpack_require__(3);
+	var rx_app_1 = __webpack_require__(8);
 	/**
 	 * Defines a class that represents a command that can run operations in the background.
 	 */
@@ -589,7 +590,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    /**
 	     * Executes this command asynchronously.
 	     * Note that this method does not check whether the command is currently executable.
-	     * Use ReactiveObject methods such as `invokeCommandWhen()` to take advantage of canExecute.
 	     */
 	    ReactiveCommand.prototype.executeAsync = function (arg) {
 	        var _this = this;
@@ -622,6 +622,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return observable.observeOn(this.scheduler);
 	    };
 	    /**
+	     * Executes this command asynchronously if the latest observed value from canExecute is true.
+	     */
+	    ReactiveCommand.prototype.invokeAsync = function (arg) {
+	        var _this = this;
+	        if (arg === void 0) { arg = null; }
+	        return this.canExecuteNow().filter(function (canExecute) { return canExecute; }).flatMap(function (c) {
+	            return _this.executeAsync(arg);
+	        });
+	    };
+	    /**
 	     * Gets an observable that determines whether the command is able to execute at the moment it is subscribed to.
 	     */
 	    ReactiveCommand.prototype.canExecuteNow = function () {
@@ -644,16 +654,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 8 */
-/***/ function(module, exports) {
-
-	module.exports = __WEBPACK_EXTERNAL_MODULE_8__;
-
-/***/ },
-/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Rx_1 = __webpack_require__(2);
+	var asap_1 = __webpack_require__(9);
+	var queue_1 = __webpack_require__(10);
+	var Schedulers = {
+	    asap: asap_1.asap,
+	    queue: queue_1.queue
+	};
 	/**
 	 * Defines a class that contains static properties that are useful for a Reactive Application.
 	 */
@@ -665,7 +674,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	         * Gets a scheduler that can be used to scheduler work on the main UI thread.
 	         */
 	        get: function () {
-	            return Rx_1.Scheduler.queue;
+	            return Schedulers.queue;
 	        },
 	        enumerable: true,
 	        configurable: true
@@ -675,7 +684,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	         * Gets a scheduler that executes work as soon as it is scheduled.
 	         */
 	        get: function () {
-	            return Rx_1.Scheduler.asap;
+	            return Schedulers.asap;
 	        },
 	        enumerable: true,
 	        configurable: true
@@ -684,6 +693,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	}());
 	exports.RxApp = RxApp;
 	//# sourceMappingURL=rx-app.js.map
+
+/***/ },
+/* 9 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_9__;
+
+/***/ },
+/* 10 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_10__;
 
 /***/ }
 /******/ ])
