@@ -19,6 +19,7 @@ export class TodoViewModel extends ReactiveObject {
     private _markAllComplete: ReactiveCommand<{}, boolean>;
     private _markAllIncomplete: ReactiveCommand<{}, boolean>;
     private _toggleAllComplete: ReactiveCommand<{}, boolean>;
+    private _clearComplete: ReactiveCommand<{}, boolean>;
     private _originalTodo: Todo;
 
     public get save(): ReactiveCommand<{}, boolean> {
@@ -50,6 +51,9 @@ export class TodoViewModel extends ReactiveObject {
     }
     public get toggleAllComplete(): ReactiveCommand<{}, boolean> {
         return this._toggleAllComplete;
+    }
+    public get clearComplete(): ReactiveCommand<{}, boolean> {
+        return this._clearComplete;
     }
 
     public get completedTodos(): Todo[] {
@@ -240,6 +244,18 @@ export class TodoViewModel extends ReactiveObject {
         }, isNotSaving);        
         
         this.areAllTodosComplete = Observable.combineLatest(hasTodos, areAllComplete, (hasTodos, complete) => hasTodos && complete);
+        
+        this._clearComplete = ReactiveCommand.createFromObservable(a => {
+            var todos = this.todos;
+            for(var i = todos.length - 1; i >= 0; i--) {
+                var t = todos[i];
+                if(t.completed) {
+                    todos.splice(i, 1);
+                }
+            }
+            this.todos = todos;
+            return this.save.executeAsync();
+        }, isNotSaving);
     }
 
     public resetNewTodo(): Todo {

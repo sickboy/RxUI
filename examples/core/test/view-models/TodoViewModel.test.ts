@@ -437,5 +437,28 @@ export function register() {
                 }, err => done(err));
             });
         });
+        describe("#clearComplete()", () => {
+           it("should remove all of the complete todos from the list", (done) => {
+               var todos: Todo[] = [
+                    new Todo("Todo", true),
+                    new Todo("Other", false),
+                    new Todo("Great", true),
+                    new Todo("Not So", false)
+                ];
+                var service = {
+                    putTodos: Sinon.stub().returns(Promise.resolve(true))
+                };
+                var viewModel = new TodoViewModel(<any>service);
+                viewModel.todos = todos.slice();
+                viewModel.clearComplete.executeAsync().subscribe(cleared => {
+                   expect(viewModel.incompleteTodos.length).to.equal(2); 
+                   expect(viewModel.completedTodos.length).to.equal(0);
+                   expect(viewModel.todos.length).to.equal(2);
+                   expect(viewModel.todos[0]).to.equal(todos[1]);
+                   expect(viewModel.todos[1]).to.equal(todos[3]);
+                   done();
+                }, err => done(err));
+           });
+        });
     });
 }
