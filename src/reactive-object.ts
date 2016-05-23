@@ -78,6 +78,7 @@ export class ReactiveObject {
     }
 
     private buildGhostObject(arr: string[], obj: any): any {
+        
         if (!obj || typeof obj !== "object" || obj.__data === null) {
             return null;
         } else {

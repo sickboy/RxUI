@@ -543,6 +543,28 @@ describe("ReactiveObject", () => {
             
             obj.child.child.child.child.prop = "value";
         });
+        
+        it("should handle properties that are currently null or undefined on the source object", (done) => {
+           class MySpecialObject extends ReactiveObject {
+               public get prop(): MyOtherObject {
+                   return this.get("prop");
+               }
+               
+               // Notice no setting prop to null in the constructor.
+           }
+           
+           var obj: MySpecialObject = new MySpecialObject();
+           
+           obj.whenAnyValue(o => o.prop.child.child.prop, v => v === "value").subscribe(value => {
+               expect(value).to.be.true;
+               done();
+           }, err => done(err));
+           
+           var other = new MyOtherObject();
+           other.child = new MyOtherObject();
+           other.child.prop = "value";
+           obj.prop.child = other;
+        });
     });
 
     describe("#whenAnyValue(prop)", () => {
@@ -563,6 +585,10 @@ describe("ReactiveObject", () => {
 
             obj.set("prop", "value");
         });
+
+        // it("should resolve immediately with the current property value", (done) => {
+            
+        // });
 
         it("should observe multiple property values for the given property names", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
