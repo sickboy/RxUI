@@ -4,17 +4,22 @@ import {Scheduler} from "rxjs/Scheduler";
 import {Subscription} from "rxjs/Subscription";
 import {RxApp} from "./rx-app";
 
+// Implementation mostly stolen from:
+// https://github.com/reactiveui/ReactiveUI/blob/rxui7-master/ReactiveUI/ReactiveCommand.cs
+// All credit goes to those creators
+
 /**
  * Defines a class that represents a command that can run operations in the background.
  */
 export class ReactiveCommand<TArgs, TResult> {
 
-    private subject: Subject<TResult>;
-    private executing: Subject<boolean>;
+    private _executionInfo: Subject<ExecutionInfo<TResult>>;
+    private _synchronizedExcecutionInfo: Subject<ExecutionInfo<TResult>>;
     private _results: Observable<TResult>;
     private _canExecute: Observable<boolean>;
     private _isExecuting: Observable<boolean>;
     private _canExecuteSubscription: Subscription;
+    private _exceptions: Subject<any>;
 
     /**
      * Gets an observable that represents whether the command is currently executing.
@@ -46,17 +51,25 @@ export class ReactiveCommand<TArgs, TResult> {
         if (!scheduler) {
             throw new Error("The scheduler parameter must be supplied");
         }
-        this.subject = new Subject<TResult>();
-        this.executing = new Subject<boolean>();
-        
+        this._executionInfo = new Subject<ExecutionInfo<TResult>>();
+        this._synchronizedExcecutionInfo = this._executionInfo;
+        this._exceptions = new Subject<any>();
+
         // Implementation mostly taken from:
         // https://github.com/reactiveui/ReactiveUI/blob/rxui7-master/ReactiveUI/ReactiveCommand.cs#L628
-        this._isExecuting = this.executing
+        
+        this._isExecuting = this._synchronizedExcecutionInfo
+            .observeOn(scheduler)
+            .map(info => info.demarcation === ExecutionDemarcation.Begin)
             .startWith(false)
             .distinctUntilChanged()
             .publishReplay(1)
             .refCount();
         this._canExecute = this.canRun
+            .catch(ex => {
+                this._exceptions.next(ex);
+                return Observable.of(false);
+            })
             .startWith(false)
             .combineLatest(this._isExecuting, (canRun, isExecuting) => {
                 return canRun && !isExecuting;
@@ -64,8 +77,11 @@ export class ReactiveCommand<TArgs, TResult> {
             .distinctUntilChanged()
             .publishReplay(1)
             .refCount();
-        this._results = this.subject.observeOn(scheduler);
-        
+        this._results = this._synchronizedExcecutionInfo
+            .observeOn(scheduler)
+            .filter(info => info.demarcation === ExecutionDemarcation.EndWithResult)
+            .map(info => info.result);
+
         // Make sure that can execute is triggered to be a hot observable.
         this._canExecuteSubscription = this._canExecute.subscribe();
     }
@@ -87,7 +103,7 @@ export class ReactiveCommand<TArgs, TResult> {
     public static create<TArgs, TResult>(task: (args: TArgs) => (TResult | void), canRun?: Observable<boolean>, scheduler?: Scheduler): ReactiveCommand<TArgs, TResult> {
         return new ReactiveCommand<TArgs, TResult>((args) => {
             var result = task(args);
-            if(typeof result !== "undefined") {
+            if (typeof result !== "undefined") {
                 return Observable.of(result);
             } else {
                 // TODO: replace with Unit
@@ -121,33 +137,54 @@ export class ReactiveCommand<TArgs, TResult> {
      * Note that this method does not check whether the command is currently executable.
      */
     public executeAsync(arg: TArgs = null): Observable<TResult> {
-        this.executing.next(true);
-        var o = null;
-        var observable = Observable.create(sub => {
-            try {
-                if(o == null) {
-                    o = this.task(arg);
-                }
-                var subscription = o.subscribe(sub);
-                return () => {
-                    subscription.unsubscribe();
-                };
-            } catch (error) {
-                sub.error(error);
-                sub.complete();
-            }
-        });
-        observable.subscribe(result => {
-            this.subject.next(result);
-        }, err => {
-            this.subject.error(err);
-            this.executing.next(false);
-        }, () => {
-            this.executing.next(false);
-        });
-        return observable.observeOn(this.scheduler);
+        // this.executing.next(true);
+        // var o = null;
+        try {
+            return Observable.defer(() => {
+                this._synchronizedExcecutionInfo.next(ExecutionInfo.createBegin<TResult>());
+                return Observable.empty<TResult>();
+            })
+                .concat(this.task(arg))
+                .do(
+                    result => this._synchronizedExcecutionInfo.next(ExecutionInfo.createResult(result)),
+                    null,
+                    () => this._synchronizedExcecutionInfo.next(ExecutionInfo.createEnded<TResult>()))
+                .catch(ex => {
+                    this._synchronizedExcecutionInfo.next(ExecutionInfo.createFail<TResult>());
+                    this._exceptions.next(ex);
+                    return Observable.throw(ex);
+                })
+                .publishLast()
+                .refCount();
+        } catch (ex) {
+            this._exceptions.next(ex);
+            return Observable.throw(ex);
+        }
+        // var observable = Observable.create(sub => {
+        //     try {
+        //         if(o == null) {
+        //             o = this.task(arg);
+        //         }
+        //         var subscription = o.subscribe(sub);
+        //         return () => {
+        //             subscription.unsubscribe();
+        //         };
+        //     } catch (error) {
+        //         sub.error(error);
+        //         sub.complete();
+        //     }
+        // });
+        // observable.subscribe(result => {
+        //     this.subject.next(result);
+        // }, err => {
+        //     this.subject.error(err);
+        //     this.executing.next(false);
+        // }, () => {
+        //     this.executing.next(false);
+        // });
+        // return observable.observeOn(this.scheduler);
     }
-    
+
     /**
      * Executes this command asynchronously if the latest observed value from canExecute is true.
      */
@@ -170,4 +207,34 @@ export class ReactiveCommand<TArgs, TResult> {
     public get results(): Observable<TResult> {
         return this._results;
     }
+}
+
+class ExecutionInfo<TResult> {
+    public demarcation: ExecutionDemarcation;
+    public result: TResult;
+    
+    constructor(demarcation: ExecutionDemarcation, result: TResult) {
+        this.demarcation = demarcation;
+        this.result = result;
+    }
+    
+    public static createBegin<TResult>(): ExecutionInfo<TResult> {
+        return new ExecutionInfo(ExecutionDemarcation.Begin, null);
+    }
+    public static createResult<TResult>(result: TResult): ExecutionInfo<TResult> {
+        return new ExecutionInfo(ExecutionDemarcation.EndWithResult, result);
+    }
+    public static createFail<TResult>(): ExecutionInfo<TResult> {
+        return new ExecutionInfo(ExecutionDemarcation.EndWithException, null);
+    }
+    public static createEnded<TResult>(): ExecutionInfo<TResult> {
+        return new ExecutionInfo(ExecutionDemarcation.Ended, null);
+    }
+}
+
+enum ExecutionDemarcation {
+    Begin,
+    EndWithResult,
+    EndWithException,
+    Ended
 }
