@@ -34,9 +34,9 @@ build:
       code: |
         sudo npm install -g typescript
     - script:
-      name: Install Mocha
+      name: Install Karma
       code: |
-        sudo npm install -g mocha
+        sudo npm install -g karma-cli
     - script:
       name: Install Deps
       code: |
@@ -44,4 +44,4 @@ build:
     - script:
       name: Test RxUI
       code: |
-        npm test
+        npm run test:ci
