@@ -1,6 +1,7 @@
 import {Observable} from "rxjs/Observable";
 import {Subject} from "rxjs/Subject";
 import {Subscription} from "rxjs/Subscription";
+import {Scheduler} from "rxjs/Scheduler";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
@@ -48,12 +49,78 @@ export class ReactiveObject {
         this._propertyChanged.next(this.createPropertyChangedEventArgs(propertyName, propValue));
     }
 
+    public static get<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T)): T | any {
+        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
+        if (evaluated.children.length === 1) {
+            if(obj instanceof ReactiveObject) {
+                return (<ReactiveObject><any>obj).__data[evaluated.property] || null;
+            } else {
+                return obj[evaluated.property];
+            }
+        } else {
+            var firstProp = evaluated.children[0];
+            var otherProperties = evaluated.property.substring(firstProp.length + 1);
+            var firstVal = ReactiveObject.get(obj, firstProp);
+            if (typeof firstVal !== "undefined") {
+                if (firstVal !== null) {
+                    if (typeof firstVal.get === "function") {
+                        return firstVal.get(otherProperties);
+                    } else {
+                        var current = firstVal;
+                        for (var i = 1; i < evaluated.children.length; i++) {
+                            current = current[evaluated.children[i]];
+                        }
+                        return current;
+                    }
+                }
+                else {
+                    return null;
+                }
+            } else {
+                return undefined;
+            }
+        }
+    }
+
     /**
      * Gets the value of the given property from this object.
      * @param property The name of the property whose value should be retrieved. 
      */
-    public get<T>(property: string): T | any {
-        return this.__data[property] || null;
+    public get<T>(property: string | ((vm: this) => T)): T | any {
+        return ReactiveObject.get(this, property);
+    }
+
+    private static set<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T), value: T) {
+        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
+        var oldValue: T = ReactiveObject.get(obj, property);
+        if (oldValue !== value) {
+            if (evaluated.children.length === 1) {
+                if (obj instanceof ReactiveObject) {
+                    var rObj: ReactiveObject = <any>obj;
+                    rObj.__data[evaluated.property] = value;
+                    rObj.emitPropertyChanged(evaluated.property, value);
+                } else {
+                    obj[evaluated.property] = value;
+                }
+            } else {
+                var firstProp = evaluated.children[0];
+                var otherProperties = evaluated.property.substring(firstProp.length + 1);
+                var firstVal = ReactiveObject.get(obj, firstProp);
+                if (firstVal != null) {
+                    if (typeof firstVal.set === "function") {
+                        firstVal.set(otherProperties, value);
+                    } else {
+                        var current = firstVal;
+                        for (var i = 1; i < evaluated.children.length - 1; i++) {
+                            current = current[evaluated.children[i]];
+                        }
+                        current[evaluated.children[evaluated.children.length - 1]] = value;
+                    }
+                } else {
+                    throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
+                }
+            }
+        }
     }
 
     /**
@@ -61,24 +128,11 @@ export class ReactiveObject {
      * @param property The name of the property to change.
      * @param value The value to give the property.
      */
-    public set<T>(property: string, value: T): void {
-        this.__data[property] = value;
-        this.emitPropertyChanged(property, value);
+    public set<T>(property: string | ((vm: this) => T), value: T): void {
+        ReactiveObject.set(this, property, value);
     }
 
-    /**
-     * Runs the given function against a dummy version of this
-     * object that builds a string that represents the properties that should be watched.
-     * @param expr The function that represents the lambda expression.
-     */
-    private evaluateLambdaExpression(expr: (o: this) => any): string {
-        var path: string[] = [];
-        var ghost = this.buildGhostObject(path);
-        expr(ghost);
-        return path.join(".");
-    }
-
-    private buildGhostObject(arr: string[]): any {
+    private static buildGhostObject(arr: string[]): any {
         function buildProxy(): Proxy {
             return new Proxy({}, {
                 get(target: any, prop: string, reciever: Proxy): any {
@@ -91,16 +145,35 @@ export class ReactiveObject {
     }
 
     /**
+     * Runs the given function against a dummy version of the given object.
+     * object that builds a string that represents the properties that should be watched.
+     * @param expr The function that represents the lambda expression.
+     */
+    private static evaluateLambdaExpression<TObj>(obj: TObj, expr: (o: TObj) => any): string {
+        var path: string[] = [];
+        var ghost = ReactiveObject.buildGhostObject(path);
+        expr(ghost);
+        return path.join(".");
+    }
+
+    private static evaluateLambdaOrString<TObj>(obj: TObj, expression: string | ((o: TObj) => any)) {
+        var property: string;
+        if (typeof expression === "function") {
+            property = ReactiveObject.evaluateLambdaExpression(obj, expression);
+        } else {
+            property = <string>expression;
+        }
+        var children = property.split(".");
+        return { children, property };
+    }
+
+    /**
      * Gets an observable that resolves with the related property changed event whenever the given property updates.
      */
     public whenSingle(expression: string | ((o: this) => any), emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
-        var prop: string;
-        if (typeof expression === "function") {
-            prop = this.evaluateLambdaExpression(expression);
-        } else {
-            prop = <any>expression;
-        }
-        var children = prop.split(".");
+        var evaulatedExpression = ReactiveObject.evaluateLambdaOrString(this, expression);
+        var children = evaulatedExpression.children;
+        var prop = evaulatedExpression.property;
 
         if (children.length === 1) {
             var child: ReactiveObject = this;
@@ -453,17 +526,48 @@ export class ReactiveObject {
      * @param view The view whose property should be bound to one of this object's properties.
      * @param viewModelProp A function that maps this object to the property that should be bound to the view. Alternatively, a string can be used to point out the property.
      * @param viewProp A function that maps the view to the property that should be bound to this object. Alternatively, a string can be used. 
+     * @param scheduler The scheduler that changes to the properties should be observed on.
      */
-    public bind<TView, TViewModelProp, TViewProp>(
+    public bind<TView extends ReactiveObject, TViewModelProp, TViewProp>(
         view: TView,
         viewModelProp: (((o: this) => TViewModelProp) | string),
-        viewProp: (((o: TView) => TViewProp) | string)
+        viewProp: (((o: TView) => TViewProp) | string),
+        scheduler?: Scheduler
     ): Subscription {
-        var didViewModelChange = Observable.merge(
-            this.whenAnyValue(viewModelProp).map(v => true)
-        );
+        // Changes to the view and view model need to be consolidated
+        // and mapped so that we can figure out two things:
+        // 1. Whether the change is comming from the view model or the view.
+        // 2. Whether the value changed, or if it is feedback from already propagating a change.
 
-        return didViewModelChange.subscribe();
+        // For now, we will just use whenAny for both the view and view model.
+        var viewChanges = view.whenAny(viewProp).map(c => ({
+            fromVm: false,
+            value: c.newPropertyValue
+        }));
+        var viewModelChanges = this.whenAny(viewModelProp).map(c => ({
+            fromVm: true,
+            value: c.newPropertyValue
+        }));
+        var changes = Observable.merge(viewChanges, viewModelChanges)
+            .distinctUntilChanged(c => c.value)
+
+            // Make sure that the view model's value is piped to the
+            // view at first.
+            .startWith({
+                fromVm: true,
+                value: this.get<TViewModelProp>(viewModelProp)
+            });
+
+        // TODO: Add support for error handling
+        return changes.subscribe(c => {
+            if (c.fromVm) {
+                // set property on view
+                view.set(viewProp, c.value);
+            } else {
+                // set property on view model
+                this.set(viewModelProp, c.value);
+            }
+        });
     }
 
     public when<T>(observable: string | Observable<T>): Observable<T> {
