@@ -87,11 +87,14 @@ describe("ReactiveObject", () => {
             var val = obj.get("prop");
             expect(val).to.equal("value");
         });
-
         it("should return null when the property is undefined", () => {
             var obj: ReactiveObject = new ReactiveObject();
             var val = obj.get("prop");
             expect(val).to.be.null;
+        });
+        it("should return null when trying to access property on already null property", () => {
+            var obj: ReactiveObject = new ReactiveObject();
+            expect(obj.get("prop.other.does.not.exist")).to.be.null;
         });
     });
 

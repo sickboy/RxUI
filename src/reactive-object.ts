@@ -50,7 +50,7 @@ export class ReactiveObject {
         this._propertyChanged.next(this.createPropertyChangedEventArgs(propertyName, propValue));
     }
 
-    public static get<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T)): T | any {
+    private static get<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T)): T | any {
         var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
         if (evaluated.children.length === 1) {
             if (obj instanceof ReactiveObject) {
