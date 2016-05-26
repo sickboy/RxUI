@@ -1,7 +1,6 @@
 import {ReactiveCommand} from "../src/reactive-command";
 import {ReactiveObject} from "../src/reactive-object";
-import {TestScheduler} from "rxjs/testing/TestScheduler";
-import {Observable, Subject} from "rxjs/Rx";
+import {Observable, Subject, TestScheduler} from "rxjs/Rx";
 import {expect} from "chai";
 import {MyObject} from "./models/my-object";
 import {MyOtherObject} from "./models/my-other-object";
@@ -129,13 +128,11 @@ describe("ReactiveCommand", () => {
                 isValid,
                 innerCommand.isExecuting.map(ie => !ie),
                 (valid, notRunning) => {
-                    console.log(valid, notRunning);
                     return valid && notRunning
                 }
             )
             var count: number = 0;
             var command: ReactiveCommand<any, any> = ReactiveCommand.createFromObservable((a) => {
-                console.log("hit");
                 count++;
                 obj.value = new MyInnerClass();
                 return innerCommand.executeAsync();

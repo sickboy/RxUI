@@ -1,7 +1,5 @@
-import {Observable} from "rxjs/Observable";
-import {Subject} from "rxjs/Subject";
+import {Observable, Subject , Subscription} from "rxjs/Rx";
 import {Scheduler} from "rxjs/Scheduler";
-import {Subscription} from "rxjs/Subscription";
 import {RxApp} from "./rx-app";
 
 // Implementation mostly stolen from:
