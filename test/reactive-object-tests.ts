@@ -1,13 +1,25 @@
 /// <reference path="../references.d.ts" />
-import {Observable} from "rxjs/Rx";
+import {Observable, Subscription} from "rxjs/Rx";
 import {ReactiveObject} from "../src/reactive-object";
 import {ReactiveCommand} from "../src/reactive-command";
 import {PropertyChangedEventArgs} from "../src/events/property-changed-event-args";
 import {expect} from "chai";
 import {MyObject} from "./models/my-object";
 import {MyOtherObject} from "./models/my-other-object";
+import {IViewBindingHelper} from "../src/view";
 
 describe("ReactiveObject", () => {
+    class ViewBindingHelper implements IViewBindingHelper {
+        public observeProp(obj: any, prop: string, emitCurrentVal: boolean, callback: Function): Function {
+            obj.changed = (newVal: any) => {
+                callback(new PropertyChangedEventArgs<any>(obj, prop, newVal));
+            };
+
+            return () => {
+                obj.changed = null;
+            }
+        }
+    }
     describe("#set()", () => {
         it("should change the value retrieved by .get()", () => {
             var obj: ReactiveObject = new ReactiveObject();
@@ -20,7 +32,6 @@ describe("ReactiveObject", () => {
             expect(obj.get("prop")).to.not.equal(firstVal);
             expect(obj.get("prop")).to.equal(newVal);
         });
-
         it("should emit new PropertyChangedEventArgs after set() is called", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
@@ -34,6 +45,39 @@ describe("ReactiveObject", () => {
 
             obj.set("message", "Hello, World!");
         });
+        it("should handle deep properties with multiple reactive objects", () => {
+            var obj: ReactiveObject = new ReactiveObject();
+            var prop: ReactiveObject = new ReactiveObject();
+            var prop2: ReactiveObject = new ReactiveObject();
+            obj.set("prop", prop);
+            obj.set("prop.prop2", prop2);
+
+            expect(obj.get("prop.prop2")).to.equal(prop2);
+        });
+        it("should handle properties specified as lambdas", () => {
+            var obj = new MyObject();
+            var prop = new MyOtherObject();
+            var prop2 = new MyOtherObject();
+
+            obj.set(o => o.child, prop);
+            obj.set(o => o.child.child, prop2);
+
+            expect(obj.get(o => o.child.child)).to.equal(prop2);
+        });
+        it("should handle non reactive objects", () => {
+            var obj: ReactiveObject = new ReactiveObject();
+            var child = {
+                val: "stuff"
+            };
+            var child2 = {
+                otherValue: "other stuff"
+            };
+
+            obj.set("child", child);
+            obj.set("child.child2", child2);
+
+            expect(obj.get("child.child2")).to.equal(child2);
+        });
     });
 
     describe("#get(prop)", () => {
@@ -43,11 +87,14 @@ describe("ReactiveObject", () => {
             var val = obj.get("prop");
             expect(val).to.equal("value");
         });
-
         it("should return null when the property is undefined", () => {
             var obj: ReactiveObject = new ReactiveObject();
             var val = obj.get("prop");
             expect(val).to.be.null;
+        });
+        it("should return null when trying to access property on already null property", () => {
+            var obj: ReactiveObject = new ReactiveObject();
+            expect(obj.get("prop.other.does.not.exist")).to.be.null;
         });
     });
 
@@ -664,5 +711,167 @@ describe("ReactiveObject", () => {
 
             obj.get("child").get("child2").get("child3").get("child4").set("prop", "value");
         });
+    });
+
+    describe("#bind(view, prop, prop)", () => {
+        class MyView extends ReactiveObject {
+            public get prop(): string {
+                return this.get("prop");
+            }
+            public set prop(val: string) {
+                this.set("prop", val);
+            }
+        }
+        it("should return a subscription", () => {
+            var vm = new MyObject();
+            var view = new MyView();
+            view.prop = "value";
+            var ret = vm.bind(<any>view, vm => vm.prop1, view => view.prop);
+            expect(ret).to.be.instanceOf(Subscription);
+        });
+        it("should set the bound property on the view object when the view model property changes", () => {
+            var vm = new MyObject();
+            var view = new MyView();
+            var viewPropChanges: PropertyChangedEventArgs<string>[] = [];
+            vm.prop1 = "Old Value";
+            view.prop = "View Value";
+            view.whenAny(v => v.prop).subscribe(change => viewPropChanges.push(change));
+
+            expect(viewPropChanges.length).to.equal(0);
+
+            var sub = vm.bind(view, vm => vm.prop1, view => view.prop);
+
+            expect(viewPropChanges.length).to.equal(1);
+
+            vm.prop1 = "New Value";
+
+            expect(viewPropChanges.length).to.equal(2);
+            expect(viewPropChanges[0].newPropertyValue).to.equal("Old Value");
+            expect(viewPropChanges[1].newPropertyValue).to.equal("New Value");
+            sub.unsubscribe();
+        });
+        it("should set the bound property on the view model when the view property changes", () => {
+            var vm = new MyObject();
+            var view = new MyView();
+            var vmPropChanges: PropertyChangedEventArgs<string>[] = [];
+            vm.prop1 = "Old Value";
+            view.prop = "View Value";
+            vm.whenAny(v => v.prop1).subscribe(change => vmPropChanges.push(change));
+
+            var sub = vm.bind(view, vm => vm.prop1, view => view.prop);
+
+            expect(vmPropChanges.length).to.equal(0);
+
+            view.prop = "New Value";
+
+            expect(vmPropChanges.length).to.equal(1);
+            expect(vmPropChanges[0].newPropertyValue).to.equal("New Value");
+            sub.unsubscribe();
+        });
+        it("should stop binding values when unsubscribed from", () => {
+            var vm = new MyObject();
+            var view = new MyView();
+            var viewPropChanges: PropertyChangedEventArgs<string>[] = [];
+            vm.prop1 = "Old Value";
+            view.prop = "View Value";
+            view.whenAny(v => v.prop).subscribe(change => viewPropChanges.push(change));
+
+            var sub = vm.bind(view, vm => vm.prop1, view => view.prop);
+            vm.prop1 = "New Value";
+            var numChanges = viewPropChanges.length;
+            sub.unsubscribe();
+            vm.prop1 = "OtherNewValue";
+
+            expect(viewPropChanges.length).to.equal(numChanges);
+        });
+        it("should throw error when binding to regular object without __viewBindingHelper", () => {
+            var vm = new MyObject();
+            var view = {
+                customProp: "value"
+            };
+
+            expect(() => {
+                var sub = vm.bind(view, vm => vm.prop1, view => view.customProp);
+            }).to.throw("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
+        });
+        it("should bind to non reactive object with __viewBindingHelper", () => {
+            var vm = new MyObject();
+            var helper = new ViewBindingHelper();
+            var view = {
+                __viewBindingHelper: helper,
+                changed: null,
+                prop: "property value"
+            };
+            vm.prop1 = "Old Value";
+
+            var sub = vm.bind(view, vm => vm.prop1, view => view.prop);
+
+            expect(view.prop).to.equal("Old Value");
+            expect(view.changed).to.not.be.null;
+
+            view.prop = "New Value";
+            view.changed(view.prop);
+
+            expect(vm.prop1).to.equal("New Value");
+
+            sub.unsubscribe();
+            expect(view.changed).to.be.null;
+        });
+    });
+    describe("#oneWayBind(view, prop, prop)", () => {
+        it("should one way bind to regular objects", () => {
+            var vm = new MyObject();
+            var view = {
+                customProp: "value"
+            };
+
+            var sub = vm.oneWayBind(view, vm => vm.prop1, view => view.customProp);
+
+            vm.prop1 = "New value";
+
+            expect(view.customProp).to.equal("New value");
+        });
+        it("should not propagate values from view", () => {
+            var vm = new MyObject();
+            var view = {
+                customProp: "value"
+            };
+            vm.prop1 = "customValue";
+            var sub = vm.oneWayBind(view, vm => vm.prop1, view => view.customProp);
+
+            view.customProp = "New value";
+
+            expect(vm.prop1).to.equal("customValue");
+        });
+        it("should return a subscription", () => {
+            var vm = new MyObject();
+            var view = {
+                customProp: "value"
+            };
+            var sub = vm.oneWayBind(view, vm => vm.prop1, view => view.customProp);
+
+            expect(sub).to.be.instanceOf(Subscription);
+        });
+    });
+    describe(".bindObservable", () => {
+       it("should return a subscription", () => {
+           var observable = Observable.of(true, false);
+           var view = {
+               customProp: "value"
+           };
+           var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
+           
+           expect(sub).to.be.instanceOf(Subscription);
+       });
+       it("should pipe values from the observable to the view", () => {
+           var observable = Observable.of(true, false);
+           var view = {
+               customProp: "value"
+           };
+           var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
+           
+           // Both values are piped through immediately
+           expect(view.customProp).to.be.false;
+       });
     });
 });
