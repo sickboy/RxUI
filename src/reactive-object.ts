@@ -586,6 +586,13 @@ export class ReactiveObject {
         });
     }
 
+    /**
+     * Propagates values from the specified property on this object to the specified property on the given view object.
+     * @param view The object that should be bound to this object.
+     * @param viewModelProp The property on this object that should set to the other property.
+     * @param viewProp The property on the view object that should recieve values from the other property.
+     * @return Subscription
+     */
     public oneWayBind<TView, TViewModelProp, TViewProp>(
         view: TView,
         viewModelProp: (((o: this) => TViewModelProp) | string),
@@ -614,7 +621,23 @@ export class ReactiveObject {
             }
         });
     }
-    
+
+    /**
+     * Binds values recieved from the given observable to the specified property on the given object.
+     * @param observable The Observable object whose values should be piped to the specified property.
+     * @param view The object that the values should be piped to.
+     * @param viewProp The property on the object that the values should be piped to.
+     */
+    public static bindObservable<TObserved, TView, TViewProp>(
+        observable: Observable<TObserved>,
+        view: TView,
+        viewProp: (((o: TView) => TViewProp) | string),
+        scheduler?: Scheduler): Subscription {
+            return observable.subscribe(value => {
+                ReactiveObject.set(view, viewProp, <any>value);
+            });
+    }
+
     public when<T>(observable: string | Observable<T>): Observable<T> {
         if (typeof observable === "string") {
             return this.whenSingle(observable, true).map(e => <Observable<T>>e.newPropertyValue).switch();

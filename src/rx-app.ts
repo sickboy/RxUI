@@ -11,19 +11,22 @@ let Schedulers = {
  * Defines a class that contains static properties that are useful for a Reactive Application.
  */
 export class RxApp {
+    /**
+     * Gets the main thread scheduler for the app.
+     * Use this scheduler for observing results from async operations.
+     * Backed by queue scheduler.
+     * Replace this property with a test scheduler for easy testing.
+     */
+    public static mainThreadScheduler: Scheduler;
     
     /**
-     * Gets a scheduler that can be used to scheduler work on the main UI thread.
+     * Gets the immediate scheduler for the app.
+     * Use this scheduler for tasks that should be executed once they are scheduled.
+     * Backed by asap scheduler.
+     * Replace this property with a test scheduler for easy testing.
      */
-    public static get mainThreadScheduler(): Scheduler {
-        return Schedulers.queue;
-    }
-    
-    /**
-     * Gets a scheduler that executes work as soon as it is scheduled.
-     */
-    public static get immediateScheduler(): Scheduler {
-        return Schedulers.asap;
-    }
-    
+    public static immediateScheduler: Scheduler;
 }
+
+RxApp.mainThreadScheduler = Schedulers.queue;
+RxApp.immediateScheduler = Schedulers.asap;

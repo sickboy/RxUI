@@ -15,7 +15,7 @@ export interface IView {
  * Defines an interface that represents a view binding helper. That is, an object that 
  * provides watch/observe capabilities on an object. 
  */
-export interface IViewBindingHelper {    
+export interface IViewBindingHelper {
     /**
      * Watches the given property on the given object and calls the given callback function when a change occurs.
      * @param obj The object whose property should be observed.

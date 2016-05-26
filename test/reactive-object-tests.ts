@@ -9,6 +9,17 @@ import {MyOtherObject} from "./models/my-other-object";
 import {IViewBindingHelper} from "../src/view";
 
 describe("ReactiveObject", () => {
+    class ViewBindingHelper implements IViewBindingHelper {
+        public observeProp(obj: any, prop: string, emitCurrentVal: boolean, callback: Function): Function {
+            obj.changed = (newVal: any) => {
+                callback(new PropertyChangedEventArgs<any>(obj, prop, newVal));
+            };
+
+            return () => {
+                obj.changed = null;
+            }
+        }
+    }
     describe("#set()", () => {
         it("should change the value retrieved by .get()", () => {
             var obj: ReactiveObject = new ReactiveObject();
@@ -21,7 +32,6 @@ describe("ReactiveObject", () => {
             expect(obj.get("prop")).to.not.equal(firstVal);
             expect(obj.get("prop")).to.equal(newVal);
         });
-
         it("should emit new PropertyChangedEventArgs after set() is called", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
@@ -35,7 +45,6 @@ describe("ReactiveObject", () => {
 
             obj.set("message", "Hello, World!");
         });
-
         it("should handle deep properties with multiple reactive objects", () => {
             var obj: ReactiveObject = new ReactiveObject();
             var prop: ReactiveObject = new ReactiveObject();
@@ -45,7 +54,6 @@ describe("ReactiveObject", () => {
 
             expect(obj.get("prop.prop2")).to.equal(prop2);
         });
-
         it("should handle properties specified as lambdas", () => {
             var obj = new MyObject();
             var prop = new MyOtherObject();
@@ -56,7 +64,6 @@ describe("ReactiveObject", () => {
 
             expect(obj.get(o => o.child.child)).to.equal(prop2);
         });
-
         it("should handle non reactive objects", () => {
             var obj: ReactiveObject = new ReactiveObject();
             var child = {
@@ -785,17 +792,6 @@ describe("ReactiveObject", () => {
             }).to.throw("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
         });
         it("should bind to non reactive object with __viewBindingHelper", () => {
-            class ViewBindingHelper implements IViewBindingHelper {
-                public observeProp(obj: any, prop: string, emitCurrentVal: boolean, callback: Function): Function {
-                    obj.changed = (newVal: any) => {
-                        callback(new PropertyChangedEventArgs<any>(obj, prop, newVal));
-                    };
-                    
-                    return () => {
-                        obj.changed = null;
-                    }
-                }
-            }
             var vm = new MyObject();
             var helper = new ViewBindingHelper();
             var view = {
@@ -804,19 +800,19 @@ describe("ReactiveObject", () => {
                 prop: "property value"
             };
             vm.prop1 = "Old Value";
-            
+
             var sub = vm.bind(view, vm => vm.prop1, view => view.prop);
-            
+
             expect(view.prop).to.equal("Old Value");
             expect(view.changed).to.not.be.null;
-            
+
             view.prop = "New Value";
             view.changed(view.prop);
-            
+
             expect(vm.prop1).to.equal("New Value");
-            
+
             sub.unsubscribe();
-            expect(view.changed).to.be.null;            
+            expect(view.changed).to.be.null;
         });
     });
     describe("#oneWayBind(view, prop, prop)", () => {
@@ -843,6 +839,36 @@ describe("ReactiveObject", () => {
             view.customProp = "New value";
 
             expect(vm.prop1).to.equal("customValue");
-        })
+        });
+        it("should return a subscription", () => {
+            var vm = new MyObject();
+            var view = {
+                customProp: "value"
+            };
+            var sub = vm.oneWayBind(view, vm => vm.prop1, view => view.customProp);
+
+            expect(sub).to.be.instanceOf(Subscription);
+        });
+    });
+    describe(".bindObservable", () => {
+       it("should return a subscription", () => {
+           var observable = Observable.of(true, false);
+           var view = {
+               customProp: "value"
+           };
+           var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
+           
+           expect(sub).to.be.instanceOf(Subscription);
+       });
+       it("should pipe values from the observable to the view", () => {
+           var observable = Observable.of(true, false);
+           var view = {
+               customProp: "value"
+           };
+           var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
+           
+           // Both values are piped through immediately
+           expect(view.customProp).to.be.false;
+       });
     });
 });

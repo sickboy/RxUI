@@ -186,7 +186,7 @@ describe("ReactiveCommand", () => {
 
             var sub = command.executeAsync().subscribe(work);
 
-            // Expect two actions to be scheduled.
+            // Expect three actions to be scheduled.
             // One for the results of the execution, one for the results of the command, and one for the exceptions
             // that the command emits.
             expect(scheduler.actions.length).to.equal(3);
