@@ -6,6 +6,7 @@ import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
 import {ReactivePropertyInfo} from "./reactive-property-info";
+import {IViewBindingHelper} from "./view";
 import "harmony-reflect";
 
 /**
@@ -52,7 +53,7 @@ export class ReactiveObject {
     public static get<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T)): T | any {
         var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
         if (evaluated.children.length === 1) {
-            if(obj instanceof ReactiveObject) {
+            if (obj instanceof ReactiveObject) {
                 return (<ReactiveObject><any>obj).__data[evaluated.property] || null;
             } else {
                 return obj[evaluated.property];
@@ -167,31 +168,42 @@ export class ReactiveObject {
         return { children, property };
     }
 
-    /**
-     * Gets an observable that resolves with the related property changed event whenever the given property updates.
-     */
-    public whenSingle(expression: string | ((o: this) => any), emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
-        var evaulatedExpression = ReactiveObject.evaluateLambdaOrString(this, expression);
-        var children = evaulatedExpression.children;
-        var prop = evaulatedExpression.property;
-
-        if (children.length === 1) {
-            var child: ReactiveObject = this;
-            var observable = child.propertyChanged.filter(e => {
+    private static whenSingleProp(obj: any, prop: string, emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
+        if (obj instanceof ReactiveObject) {
+            var reactive: ReactiveObject = <ReactiveObject>obj;
+            var observable = reactive.propertyChanged.filter(e => {
                 return e.propertyName == prop;
             });
             if (emitCurrentVal) {
-                return Observable.of(this.createPropertyChangedEventArgs(prop, this.get(prop))).concat(observable);
+                return Observable.of(reactive.createPropertyChangedEventArgs(prop, reactive.get(prop))).concat(observable);
             } else {
                 return observable;
             }
+        } else {
+            if (obj.__viewBindingHelper) {
+                var helper: IViewBindingHelper = obj.__viewBindingHelper;
+                return Observable.create((observer) => {
+                    return helper.observeProp(obj, prop, emitCurrentVal, e => {
+                        observer.next(e);
+                    });
+                });
+            } else {
+                throw new Error("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
+            }
+        }
+    }
+
+    private static whenSingle<TObj, TProp>(obj: TObj, expression: (((o: TObj) => TProp) | string), emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<TProp>> {
+        var evaulatedExpression = ReactiveObject.evaluateLambdaOrString(obj, expression);
+        var children = evaulatedExpression.children;
+        var prop = evaulatedExpression.property;
+        if (children.length === 1) {
+            return ReactiveObject.whenSingleProp(obj, prop, emitCurrentVal);
         } else {
             // Assuming prop = "first.second.third"
             var firstProp = children[0]; // = "first"
             // All of the other properties = "second.third"
             var propertiesWithoutFirst = prop.substring(firstProp.length + 1);
-            // Get the object/value that is at the "first" key of this object.
-            var firstChild: ReactiveObject = this.get(firstProp);
 
             // Watch for changes to the "first" property on this object,
             // and subscribe to the rest of the properties on that object.
@@ -202,13 +214,11 @@ export class ReactiveObject {
             // This way, we can be sure about whether to emit the current value or not, based on whether
             // we have observed 2 or more events at this level.
             var observationCount: number = 0;
-            return this.whenSingle(firstProp, true).map(change => {
+            return ReactiveObject.whenSingleProp(obj, firstProp, true).map(change => {
                 var obj: ReactiveObject = change.newPropertyValue;
                 observationCount++;
-                if (obj && typeof obj.whenSingle !== "function") {
-                    throw new Error(`Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '${firstProp}', is not a Reactive Object when it should be.`);
-                } else if (obj !== null && typeof obj !== "undefined") {
-                    return obj.whenSingle(propertiesWithoutFirst, emitCurrentVal || observationCount > 1);
+                if (obj) {
+                    return ReactiveObject.whenSingle(obj, propertiesWithoutFirst, emitCurrentVal || observationCount > 1);
                 } else if (emitCurrentVal) {
                     return Observable.of(change);
                 } else {
@@ -216,6 +226,13 @@ export class ReactiveObject {
                 }
             }).switch();
         }
+    }
+
+    /**
+     * Gets an observable that resolves with the related property changed event whenever the given property updates.
+     */
+    public whenSingle(expression: string | ((o: this) => any), emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
+        return ReactiveObject.whenSingle(this, expression, emitCurrentVal);
     }
 
     /**
@@ -528,7 +545,7 @@ export class ReactiveObject {
      * @param viewProp A function that maps the view to the property that should be bound to this object. Alternatively, a string can be used. 
      * @param scheduler The scheduler that changes to the properties should be observed on.
      */
-    public bind<TView extends ReactiveObject, TViewModelProp, TViewProp>(
+    public bind<TView, TViewModelProp, TViewProp>(
         view: TView,
         viewModelProp: (((o: this) => TViewModelProp) | string),
         viewProp: (((o: TView) => TViewProp) | string),
@@ -539,8 +556,7 @@ export class ReactiveObject {
         // 1. Whether the change is comming from the view model or the view.
         // 2. Whether the value changed, or if it is feedback from already propagating a change.
 
-        // For now, we will just use whenAny for both the view and view model.
-        var viewChanges = view.whenAny(viewProp).map(c => ({
+        var viewChanges = ReactiveObject.whenSingle(view, viewProp).map(c => ({
             fromVm: false,
             value: c.newPropertyValue
         }));
@@ -562,7 +578,7 @@ export class ReactiveObject {
         return changes.subscribe(c => {
             if (c.fromVm) {
                 // set property on view
-                view.set(viewProp, c.value);
+                ReactiveObject.set(view, viewProp, c.value);
             } else {
                 // set property on view model
                 this.set(viewModelProp, c.value);
@@ -570,6 +586,35 @@ export class ReactiveObject {
         });
     }
 
+    public oneWayBind<TView, TViewModelProp, TViewProp>(
+        view: TView,
+        viewModelProp: (((o: this) => TViewModelProp) | string),
+        viewProp: (((o: TView) => TViewProp) | string),
+        scheduler?: Scheduler
+    ): Subscription {
+        var viewModelChanges = this.whenAny(viewModelProp).map(c => ({
+            fromVm: true,
+            value: c.newPropertyValue
+        }));
+        var changes = Observable.merge(viewModelChanges)
+            .distinctUntilChanged(c => c.value)
+
+            // Make sure that the view model's value is piped to the
+            // view at first.
+            .startWith({
+                fromVm: true,
+                value: this.get<TViewModelProp>(viewModelProp)
+            });
+
+        // TODO: Add support for error handling
+        return changes.subscribe(c => {
+            if (c.fromVm) {
+                // set property on view
+                ReactiveObject.set(view, viewProp, c.value);
+            }
+        });
+    }
+    
     public when<T>(observable: string | Observable<T>): Observable<T> {
         if (typeof observable === "string") {
             return this.whenSingle(observable, true).map(e => <Observable<T>>e.newPropertyValue).switch();
