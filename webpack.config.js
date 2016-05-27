@@ -16,10 +16,11 @@ module.exports = {
     target: 'web',
     externals: [
         {
-            'harmony-reflect': 'var null',
-            "rxjs/Rx": 'var Rx',
-            "rxjs/scheduler/asap": 'var Rx.Scheduler',
-            "rxjs/scheduler/queue": 'var Rx.Scheduler'
+            "harmony-reflect": "var null",
+            "rxjs/Rx": "var Rx",
+            "rxjs/scheduler/asap": "var Rx.Scheduler",
+            "rxjs/scheduler/queue": "var Rx.Scheduler",
+            "bluebird": "var Promise"
         },
         /^[a-z\-0-9]+$/
     ],

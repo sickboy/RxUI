@@ -131,16 +131,23 @@ export class ReactiveObject {
         ReactiveObject.set(this, property, value);
     }
 
+    /**
+     * Builds a proxy object that adds accessed property names to the given array if proxies are supported.
+     * Returns null if proxies are not supported.
+     */
     private static buildGhostObject(arr: string[]): any {
-        function buildProxy(): Proxy {
-            return new Proxy({}, {
-                get(target: any, prop: string, reciever: Proxy): any {
-                    arr.push(prop);
-                    return buildProxy();
-                }
-            });
+        if (typeof Proxy !== 'undefined') {
+            function buildProxy(): Proxy {
+                return new Proxy({}, {
+                    get(target: any, prop: string, reciever: Proxy): any {
+                        arr.push(prop);
+                        return buildProxy();
+                    }
+                });
+            }
+            return buildProxy();
         }
-        return buildProxy();
+        return null;
     }
 
     /**
@@ -151,8 +158,42 @@ export class ReactiveObject {
     private static evaluateLambdaExpression<TObj>(obj: TObj, expr: (o: TObj) => any): string {
         var path: string[] = [];
         var ghost = ReactiveObject.buildGhostObject(path);
-        expr(ghost);
+        if (ghost) {
+            expr(ghost);
+        } else {
+            ReactiveObject.evaluateLambdaErrors(path, expr);
+        }
         return path.join(".");
+    }
+
+    private static evaluateLambdaErrors(path: string[], expr: (o: any) => any, currentObj: any = null): void {
+        // Hack the errors that null reference exceptions return to retrieve property names
+        // Works in IE 11
+        try {
+            expr(currentObj);
+        } catch (ex) {
+            if (ex instanceof TypeError) {
+                var error = <TypeError>ex;
+                // We may be able to retrieve the property name from the error
+                var regex = /property\s+'(\w+)'/g;
+                var match = regex.exec(error.message); 
+                if(match) {
+                    var propertyName = match[1];
+                    if(propertyName) {
+                        path.push(propertyName);
+                        currentObj = currentObj || {};
+                        var currentPath = currentObj;
+                        path.forEach((p, i) => {
+                            currentPath[p] = i < path.length - 1 ? {} : null;
+                            currentPath = currentPath[p];
+                        });
+                        ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
+                        return;
+                    }
+                }
+            }
+            throw ex;
+        }
     }
 
     private static evaluateLambdaOrString<TObj>(obj: TObj, expression: string | ((o: TObj) => any)) {
@@ -631,9 +672,9 @@ export class ReactiveObject {
         view: TView,
         viewProp: (((o: TView) => TViewProp) | string),
         scheduler?: Scheduler): Subscription {
-            return observable.subscribe(value => {
-                ReactiveObject.set(view, viewProp, <any>value);
-            });
+        return observable.subscribe(value => {
+            ReactiveObject.set(view, viewProp, <any>value);
+        });
     }
 
     public when<T>(observable: string | Observable<T>): Observable<T> {

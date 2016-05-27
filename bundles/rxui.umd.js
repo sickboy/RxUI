@@ -201,16 +201,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.prototype.set = function (property, value) {
 	        ReactiveObject.set(this, property, value);
 	    };
+	    /**
+	     * Builds a proxy object that adds accessed property names to the given array if proxies are supported.
+	     * Returns null if proxies are not supported.
+	     */
 	    ReactiveObject.buildGhostObject = function (arr) {
-	        function buildProxy() {
-	            return new Proxy({}, {
-	                get: function (target, prop, reciever) {
-	                    arr.push(prop);
-	                    return buildProxy();
-	                }
-	            });
+	        if (typeof Proxy !== 'undefined') {
+	            function buildProxy() {
+	                return new Proxy({}, {
+	                    get: function (target, prop, reciever) {
+	                        arr.push(prop);
+	                        return buildProxy();
+	                    }
+	                });
+	            }
+	            return buildProxy();
 	        }
-	        return buildProxy();
+	        return null;
 	    };
 	    /**
 	     * Runs the given function against a dummy version of the given object.
@@ -220,8 +227,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.evaluateLambdaExpression = function (obj, expr) {
 	        var path = [];
 	        var ghost = ReactiveObject.buildGhostObject(path);
-	        expr(ghost);
+	        if (ghost) {
+	            expr(ghost);
+	        }
+	        else {
+	            ReactiveObject.evaluateLambdaErrors(path, expr);
+	        }
 	        return path.join(".");
+	    };
+	    ReactiveObject.evaluateLambdaErrors = function (path, expr, currentObj) {
+	        if (currentObj === void 0) { currentObj = null; }
+	        // Hack the errors that null reference exceptions return to retrieve property names
+	        // Works in IE 11
+	        try {
+	            expr(currentObj);
+	        }
+	        catch (ex) {
+	            if (ex instanceof TypeError) {
+	                var error = ex;
+	                // We may be able to retrieve the property name from the error
+	                var regex = /property\s+'(\w+)'/g;
+	                var match = regex.exec(error.message);
+	                if (match) {
+	                    var propertyName = match[1];
+	                    if (propertyName) {
+	                        path.push(propertyName);
+	                        currentObj = currentObj || {};
+	                        var currentPath = currentObj;
+	                        path.forEach(function (p, i) {
+	                            currentPath[p] = i < path.length - 1 ? {} : null;
+	                            currentPath = currentPath[p];
+	                        });
+	                        ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
+	                        return;
+	                    }
+	                }
+	            }
+	            throw ex;
+	        }
 	    };
 	    ReactiveObject.evaluateLambdaOrString = function (obj, expression) {
 	        var property;

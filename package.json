@@ -32,6 +32,7 @@
     "rxjs": "^5.0.0-beta.8"
   },
   "devDependencies": {
+    "bluebird": "^3.4.0",
     "chai": "^3.5.0",
     "concurrently": "^2.0.0",
     "expect.js": "^0.3.1",

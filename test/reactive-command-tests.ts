@@ -4,6 +4,7 @@ import {Observable, Subject, TestScheduler} from "rxjs/Rx";
 import {expect} from "chai";
 import {MyObject} from "./models/my-object";
 import {MyOtherObject} from "./models/my-other-object";
+import Promise = require("bluebird");
 
 describe("ReactiveCommand", () => {
     describe(".createFromTask()", () => {
