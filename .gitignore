@@ -40,4 +40,6 @@ jspm_packages
 !proxy-shim.d.ts
 !references.d.ts
 !webpack.config.js
+!karma.conf.js
+!karma.conf-ci.js
 !bundles/
