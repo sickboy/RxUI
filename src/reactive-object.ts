@@ -136,15 +136,15 @@ export class ReactiveObject {
      * Returns null if proxies are not supported.
      */
     private static buildGhostObject(arr: string[]): any {
+        function buildProxy(): Proxy {
+            return new Proxy({}, {
+                get(target: any, prop: string, reciever: Proxy): any {
+                    arr.push(prop);
+                    return buildProxy();
+                }
+            });
+        }
         if (typeof Proxy !== 'undefined') {
-            function buildProxy(): Proxy {
-                return new Proxy({}, {
-                    get(target: any, prop: string, reciever: Proxy): any {
-                        arr.push(prop);
-                        return buildProxy();
-                    }
-                });
-            }
             return buildProxy();
         }
         return null;
@@ -176,10 +176,10 @@ export class ReactiveObject {
                 var error = <TypeError>ex;
                 // We may be able to retrieve the property name from the error
                 var regex = /property\s+'(\w+)'/g;
-                var match = regex.exec(error.message); 
-                if(match) {
+                var match = regex.exec(error.message);
+                if (match) {
                     var propertyName = match[1];
-                    if(propertyName) {
+                    if (propertyName) {
                         path.push(propertyName);
                         currentObj = currentObj || {};
                         var currentPath = currentObj;

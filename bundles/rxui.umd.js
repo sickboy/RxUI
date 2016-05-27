@@ -206,15 +206,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * Returns null if proxies are not supported.
 	     */
 	    ReactiveObject.buildGhostObject = function (arr) {
+	        function buildProxy() {
+	            return new Proxy({}, {
+	                get: function (target, prop, reciever) {
+	                    arr.push(prop);
+	                    return buildProxy();
+	                }
+	            });
+	        }
 	        if (typeof Proxy !== 'undefined') {
-	            function buildProxy() {
-	                return new Proxy({}, {
-	                    get: function (target, prop, reciever) {
-	                        arr.push(prop);
-	                        return buildProxy();
-	                    }
-	                });
-	            }
 	            return buildProxy();
 	        }
 	        return null;
