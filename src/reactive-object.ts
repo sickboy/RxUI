@@ -175,6 +175,7 @@ export class ReactiveObject {
             if (ex instanceof TypeError) {
                 var error = <TypeError>ex;
                 // We may be able to retrieve the property name from the error
+                // TODO: Add Support for Mobile Safari Error Messages
                 var regex = /property\s+'(\w+)'/g;
                 var match = regex.exec(error.message);
                 if (match) {
