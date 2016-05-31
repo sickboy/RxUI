@@ -1,6 +1,4 @@
-import {Observable} from "rxjs/Observable";
-import {Subject} from "rxjs/Subject";
-import {Subscription} from "rxjs/Subscription";
+import {Observable, Subject, Subscription} from "rxjs/Rx";
 import {Scheduler} from "rxjs/Scheduler";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
@@ -133,6 +131,10 @@ export class ReactiveObject {
         ReactiveObject.set(this, property, value);
     }
 
+    /**
+     * Builds a proxy object that adds accessed property names to the given array if proxies are supported.
+     * Returns null if proxies are not supported.
+     */
     private static buildGhostObject(arr: string[]): any {
         function buildProxy(): Proxy {
             return new Proxy({}, {
@@ -142,7 +144,10 @@ export class ReactiveObject {
                 }
             });
         }
-        return buildProxy();
+        if (typeof Proxy !== 'undefined') {
+            return buildProxy();
+        }
+        return null;
     }
 
     /**
@@ -153,8 +158,66 @@ export class ReactiveObject {
     private static evaluateLambdaExpression<TObj>(obj: TObj, expr: (o: TObj) => any): string {
         var path: string[] = [];
         var ghost = ReactiveObject.buildGhostObject(path);
-        expr(ghost);
+        if (ghost) {
+            expr(ghost);
+        } else {
+            ReactiveObject.evaluateLambdaErrors(path, expr);
+        }
         return path.join(".");
+    }
+
+    private static evaluateLambdaErrors(path: string[], expr: (o: any) => any, currentObj: any = null): void {
+        // Hack the errors that null reference exceptions return to retrieve property names
+        // Works in IE 9+, Chrome 35+, Firefox 30+, Safari 7+
+        // This hack is needed to support lambda expressions in browsers where proxy support is
+        // not yet available. 
+        // Because lambda expressions need to represent any combination of valid property names for an object,
+        // we need to be able to intercept any call to retrieve a property value.
+        // In browsers that do not provide this functionality, we take advantage of the fact that error messages
+        // include property names in them. 
+        // For example, in Chrome 50+, the following code:
+        // 
+        // var myObj = null;
+        // var myPropVar = myObj.myProp;
+        //
+        // throws the following error:
+        //
+        // "TypeError: Cannot read property 'myProp' of null"
+        //
+        // As you can read, the error contains the name of the property that was attempted to be accessed, which is exactly what we want. :)
+        // The error message is mostly the same for IE and Firefox, but not for Safari, hence the second regex. 
+        try {
+            expr(currentObj);
+        } catch (ex) {
+            if (ex instanceof TypeError) {
+                var error = <TypeError>ex;
+                var propertyName: string = null;
+                // Regex for IE, Chrome & Firefox error messages
+                var match = (/property\s+'(\w+)'/g).exec(error.message);
+                if (match) {
+                    propertyName = match[1];
+                }
+                if(!propertyName) {
+                    // Regex for Safari (iOS & OS X) error messages
+                    match = (/evaluating \'([\w]+\.?)+\'/g).exec(error.message);
+                    if(match) {
+                        propertyName = match[match.length - 1];
+                    }
+                }
+                if(propertyName) {
+                    path.push(propertyName);
+                    currentObj = currentObj || {};
+                    var currentPath = currentObj;
+                    path.forEach((p, i) => {
+                        currentPath[p] = i < path.length - 1 ? {} : null;
+                        currentPath = currentPath[p];
+                    });
+                    ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
+                    return;
+                }
+            }
+            throw ex;
+        }
     }
 
     private static evaluateLambdaOrString<TObj>(obj: TObj, expression: string | ((o: TObj) => any)) {
@@ -633,9 +696,9 @@ export class ReactiveObject {
         view: TView,
         viewProp: (((o: TView) => TViewProp) | string),
         scheduler?: Scheduler): Subscription {
-            return observable.subscribe(value => {
-                ReactiveObject.set(view, viewProp, <any>value);
-            });
+        return observable.subscribe(value => {
+            ReactiveObject.set(view, viewProp, <any>value);
+        });
     }
 
     public when<T>(observable: string | Observable<T>): Observable<T> {

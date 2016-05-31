@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("harmony-reflect"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
+		module.exports = factory(require("Rx"), require("null"), require("Rx.Scheduler"));
 	else if(typeof define === 'function' && define.amd)
-		define(["rxjs/Observable", "rxjs/Subject", "harmony-reflect", "rxjs/scheduler/asap", "rxjs/scheduler/queue"], factory);
+		define(["Rx", "null", "Rx.Scheduler"], factory);
 	else if(typeof exports === 'object')
-		exports["RxUI"] = factory(require("rxjs/Observable"), require("rxjs/Subject"), require("harmony-reflect"), require("rxjs/scheduler/asap"), require("rxjs/scheduler/queue"));
+		exports["RxUI"] = factory(require("Rx"), require("null"), require("Rx.Scheduler"));
 	else
-		root["RxUI"] = factory(root["rxjs/Observable"], root["rxjs/Subject"], root["harmony-reflect"], root["rxjs/scheduler/asap"], root["rxjs/scheduler/queue"]);
-})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_3__, __WEBPACK_EXTERNAL_MODULE_7__, __WEBPACK_EXTERNAL_MODULE_10__, __WEBPACK_EXTERNAL_MODULE_11__) {
+		root["RxUI"] = factory(root["Rx"], root["null"], root["Rx.Scheduler"]);
+})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_7__, __WEBPACK_EXTERNAL_MODULE_10__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -58,7 +58,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	function __export(m) {
 	    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 	}
-	__export(__webpack_require__(1));
+	__export(__webpack_require__(3));
 	__export(__webpack_require__(4));
 	__export(__webpack_require__(8));
 	__export(__webpack_require__(9));
@@ -66,12 +66,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=main.js.map
 
 /***/ },
-/* 1 */
+/* 1 */,
+/* 2 */
+/***/ function(module, exports) {
+
+	module.exports = Rx;
+
+/***/ },
+/* 3 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Observable_1 = __webpack_require__(2);
-	var Subject_1 = __webpack_require__(3);
+	var Rx_1 = __webpack_require__(2);
 	var property_changed_event_args_1 = __webpack_require__(4);
 	var invoke_command_1 = __webpack_require__(6);
 	__webpack_require__(7);
@@ -85,7 +91,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * Creates a new reactive object.
 	     */
 	    function ReactiveObject() {
-	        this._propertyChanged = new Subject_1.Subject();
+	        this._propertyChanged = new Rx_1.Subject();
 	        this.__data = {};
 	    }
 	    Object.defineProperty(ReactiveObject.prototype, "propertyChanged", {
@@ -108,12 +114,84 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var propValue = newPropertyValue != null ? newPropertyValue : this.get(propertyName);
 	        this._propertyChanged.next(this.createPropertyChangedEventArgs(propertyName, propValue));
 	    };
+	    ReactiveObject.get = function (obj, property) {
+	        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
+	        if (evaluated.children.length === 1) {
+	            if (obj instanceof ReactiveObject) {
+	                return obj.__data[evaluated.property] || null;
+	            }
+	            else {
+	                return obj[evaluated.property];
+	            }
+	        }
+	        else {
+	            var firstProp = evaluated.children[0];
+	            var otherProperties = evaluated.property.substring(firstProp.length + 1);
+	            var firstVal = ReactiveObject.get(obj, firstProp);
+	            if (typeof firstVal !== "undefined") {
+	                if (firstVal !== null) {
+	                    if (typeof firstVal.get === "function") {
+	                        return firstVal.get(otherProperties);
+	                    }
+	                    else {
+	                        var current = firstVal;
+	                        for (var i = 1; i < evaluated.children.length; i++) {
+	                            current = current[evaluated.children[i]];
+	                        }
+	                        return current;
+	                    }
+	                }
+	                else {
+	                    return null;
+	                }
+	            }
+	            else {
+	                return undefined;
+	            }
+	        }
+	    };
 	    /**
 	     * Gets the value of the given property from this object.
 	     * @param property The name of the property whose value should be retrieved.
 	     */
 	    ReactiveObject.prototype.get = function (property) {
-	        return this.__data[property] || null;
+	        return ReactiveObject.get(this, property);
+	    };
+	    ReactiveObject.set = function (obj, property, value) {
+	        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
+	        var oldValue = ReactiveObject.get(obj, property);
+	        if (oldValue !== value) {
+	            if (evaluated.children.length === 1) {
+	                if (obj instanceof ReactiveObject) {
+	                    var rObj = obj;
+	                    rObj.__data[evaluated.property] = value;
+	                    rObj.emitPropertyChanged(evaluated.property, value);
+	                }
+	                else {
+	                    obj[evaluated.property] = value;
+	                }
+	            }
+	            else {
+	                var firstProp = evaluated.children[0];
+	                var otherProperties = evaluated.property.substring(firstProp.length + 1);
+	                var firstVal = ReactiveObject.get(obj, firstProp);
+	                if (firstVal != null) {
+	                    if (typeof firstVal.set === "function") {
+	                        firstVal.set(otherProperties, value);
+	                    }
+	                    else {
+	                        var current = firstVal;
+	                        for (var i = 1; i < evaluated.children.length - 1; i++) {
+	                            current = current[evaluated.children[i]];
+	                        }
+	                        current[evaluated.children[evaluated.children.length - 1]] = value;
+	                    }
+	                }
+	                else {
+	                    throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
+	                }
+	            }
+	        }
 	    };
 	    /**
 	     * Sets the value of the given property on this object and emits the "propertyChanged" event.
@@ -121,21 +199,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param value The value to give the property.
 	     */
 	    ReactiveObject.prototype.set = function (property, value) {
-	        this.__data[property] = value;
-	        this.emitPropertyChanged(property, value);
+	        ReactiveObject.set(this, property, value);
 	    };
 	    /**
-	     * Runs the given function against a dummy version of this
-	     * object that builds a string that represents the properties that should be watched.
-	     * @param expr The function that represents the lambda expression.
+	     * Builds a proxy object that adds accessed property names to the given array if proxies are supported.
+	     * Returns null if proxies are not supported.
 	     */
-	    ReactiveObject.prototype.evaluateLambdaExpression = function (expr) {
-	        var path = [];
-	        var ghost = this.buildGhostObject(path);
-	        expr(ghost);
-	        return path.join(".");
-	    };
-	    ReactiveObject.prototype.buildGhostObject = function (arr) {
+	    ReactiveObject.buildGhostObject = function (arr) {
 	        function buildProxy() {
 	            return new Proxy({}, {
 	                get: function (target, prop, reciever) {
@@ -144,40 +214,117 @@ return /******/ (function(modules) { // webpackBootstrap
 	                }
 	            });
 	        }
-	        return buildProxy();
+	        if (typeof Proxy !== 'undefined') {
+	            return buildProxy();
+	        }
+	        return null;
 	    };
 	    /**
-	     * Gets an observable that resolves with the related property changed event whenever the given property updates.
+	     * Runs the given function against a dummy version of the given object.
+	     * object that builds a string that represents the properties that should be watched.
+	     * @param expr The function that represents the lambda expression.
 	     */
-	    ReactiveObject.prototype.whenSingle = function (expression, emitCurrentVal) {
-	        if (emitCurrentVal === void 0) { emitCurrentVal = false; }
-	        var prop;
-	        if (typeof expression === "function") {
-	            prop = this.evaluateLambdaExpression(expression);
+	    ReactiveObject.evaluateLambdaExpression = function (obj, expr) {
+	        var path = [];
+	        var ghost = ReactiveObject.buildGhostObject(path);
+	        if (ghost) {
+	            expr(ghost);
 	        }
 	        else {
-	            prop = expression;
+	            ReactiveObject.evaluateLambdaErrors(path, expr);
 	        }
-	        var children = prop.split(".");
-	        if (children.length === 1) {
-	            var child = this;
-	            var observable = child.propertyChanged.filter(function (e) {
+	        return path.join(".");
+	    };
+	    ReactiveObject.evaluateLambdaErrors = function (path, expr, currentObj) {
+	        if (currentObj === void 0) { currentObj = null; }
+	        // Hack the errors that null reference exceptions return to retrieve property names
+	        // Works in IE 11, Chrome 35 and Firefox 30
+	        try {
+	            expr(currentObj);
+	        }
+	        catch (ex) {
+	            if (ex instanceof TypeError) {
+	                var error = ex;
+	                var propertyName = null;
+	                // We may be able to retrieve the property name from the error
+	                // TODO: Add Support for Mobile Safari Error Messages
+	                var match = (/property\s+'(\w+)'/g).exec(error.message);
+	                if (match) {
+	                    propertyName = match[1];
+	                }
+	                if (!propertyName) {
+	                    match = (/evaluating \'([\w]+\.?)+\'/g).exec(error.message);
+	                    if (match) {
+	                        propertyName = match[match.length - 1];
+	                    }
+	                }
+	                if (propertyName) {
+	                    path.push(propertyName);
+	                    currentObj = currentObj || {};
+	                    var currentPath = currentObj;
+	                    path.forEach(function (p, i) {
+	                        currentPath[p] = i < path.length - 1 ? {} : null;
+	                        currentPath = currentPath[p];
+	                    });
+	                    ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
+	                    return;
+	                }
+	            }
+	            throw ex;
+	        }
+	    };
+	    ReactiveObject.evaluateLambdaOrString = function (obj, expression) {
+	        var property;
+	        if (typeof expression === "function") {
+	            property = ReactiveObject.evaluateLambdaExpression(obj, expression);
+	        }
+	        else {
+	            property = expression;
+	        }
+	        var children = property.split(".");
+	        return { children: children, property: property };
+	    };
+	    ReactiveObject.whenSingleProp = function (obj, prop, emitCurrentVal) {
+	        if (emitCurrentVal === void 0) { emitCurrentVal = false; }
+	        if (obj instanceof ReactiveObject) {
+	            var reactive = obj;
+	            var observable = reactive.propertyChanged.filter(function (e) {
 	                return e.propertyName == prop;
 	            });
 	            if (emitCurrentVal) {
-	                return Observable_1.Observable.of(this.createPropertyChangedEventArgs(prop, this.get(prop))).concat(observable);
+	                return Rx_1.Observable.of(reactive.createPropertyChangedEventArgs(prop, reactive.get(prop))).concat(observable);
 	            }
 	            else {
 	                return observable;
 	            }
 	        }
 	        else {
+	            if (obj.__viewBindingHelper) {
+	                var helper = obj.__viewBindingHelper;
+	                return Rx_1.Observable.create(function (observer) {
+	                    return helper.observeProp(obj, prop, emitCurrentVal, function (e) {
+	                        observer.next(e);
+	                    });
+	                });
+	            }
+	            else {
+	                throw new Error("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
+	            }
+	        }
+	    };
+	    ReactiveObject.whenSingle = function (obj, expression, emitCurrentVal) {
+	        if (emitCurrentVal === void 0) { emitCurrentVal = false; }
+	        var evaulatedExpression = ReactiveObject.evaluateLambdaOrString(obj, expression);
+	        var children = evaulatedExpression.children;
+	        var prop = evaulatedExpression.property;
+	        if (children.length === 1) {
+	            return ReactiveObject.whenSingleProp(obj, prop, emitCurrentVal);
+	        }
+	        else {
 	            // Assuming prop = "first.second.third"
 	            var firstProp = children[0]; // = "first"
 	            // All of the other properties = "second.third"
 	            var propertiesWithoutFirst = prop.substring(firstProp.length + 1);
-	            // Get the object/value that is at the "first" key of this object.
-	            var firstChild = this.get(firstProp);
 	            // Watch for changes to the "first" property on this object,
 	            // and subscribe to the rest of the properties on that object.
 	            // Switch between the observed values, so that only the most recent object graph
@@ -186,23 +333,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	            // This way, we can be sure about whether to emit the current value or not, based on whether
 	            // we have observed 2 or more events at this level.
 	            var observationCount = 0;
-	            return this.whenSingle(firstProp, true).map(function (change) {
+	            return ReactiveObject.whenSingleProp(obj, firstProp, true).map(function (change) {
 	                var obj = change.newPropertyValue;
 	                observationCount++;
-	                if (obj && typeof obj.whenSingle !== "function") {
-	                    throw new Error("Not all of the objects in the chain of properties are Reactive Objects. Specifically, the property '" + firstProp + "', is not a Reactive Object when it should be.");
-	                }
-	                else if (obj !== null && typeof obj !== "undefined") {
-	                    return obj.whenSingle(propertiesWithoutFirst, emitCurrentVal || observationCount > 1);
+	                if (obj) {
+	                    return ReactiveObject.whenSingle(obj, propertiesWithoutFirst, emitCurrentVal || observationCount > 1);
 	                }
 	                else if (emitCurrentVal) {
-	                    return Observable_1.Observable.of(change);
+	                    return Rx_1.Observable.of(change);
 	                }
 	                else {
-	                    return Observable_1.Observable.empty();
+	                    return Rx_1.Observable.empty();
 	                }
 	            }).switch();
 	        }
+	    };
+	    /**
+	     * Gets an observable that resolves with the related property changed event whenever the given property updates.
+	     */
+	    ReactiveObject.prototype.whenSingle = function (expression, emitCurrentVal) {
+	        if (emitCurrentVal === void 0) { emitCurrentVal = false; }
+	        return ReactiveObject.whenSingle(this, expression, emitCurrentVal);
 	    };
 	    /**
 	     * Gets an observable that resolves with the related property changed event whenever the given properties update.
@@ -233,10 +384,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	            return _this.whenSingle(prop);
 	        }).filter(function (o) { return o != null; });
 	        if (map) {
-	            return Observable_1.Observable.combineLatest.apply(Observable_1.Observable, observableList.concat([map]));
+	            return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([map]));
 	        }
 	        else {
-	            return Observable_1.Observable.combineLatest.apply(Observable_1.Observable, observableList.concat([function () {
+	            return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([function () {
 	                var events = [];
 	                for (var _i = 0; _i < arguments.length; _i++) {
 	                    events[_i - 0] = arguments[_i];
@@ -287,6 +438,82 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }
 	        }]));
 	    };
+	    /**
+	     * Binds the specified property on this object to the specified property on the given other object.
+	     * @param view The view whose property should be bound to one of this object's properties.
+	     * @param viewModelProp A function that maps this object to the property that should be bound to the view. Alternatively, a string can be used to point out the property.
+	     * @param viewProp A function that maps the view to the property that should be bound to this object. Alternatively, a string can be used.
+	     * @param scheduler The scheduler that changes to the properties should be observed on.
+	     */
+	    ReactiveObject.prototype.bind = function (view, viewModelProp, viewProp, scheduler) {
+	        // Changes to the view and view model need to be consolidated
+	        // and mapped so that we can figure out two things:
+	        // 1. Whether the change is comming from the view model or the view.
+	        // 2. Whether the value changed, or if it is feedback from already propagating a change.
+	        var _this = this;
+	        var viewChanges = ReactiveObject.whenSingle(view, viewProp).map(function (c) { return ({
+	            fromVm: false,
+	            value: c.newPropertyValue
+	        }); });
+	        var viewModelChanges = this.whenAny(viewModelProp).map(function (c) { return ({
+	            fromVm: true,
+	            value: c.newPropertyValue
+	        }); });
+	        var changes = Rx_1.Observable.merge(viewChanges, viewModelChanges)
+	            .distinctUntilChanged(function (c) { return c.value; })
+	            .startWith({
+	            fromVm: true,
+	            value: this.get(viewModelProp)
+	        });
+	        // TODO: Add support for error handling
+	        return changes.subscribe(function (c) {
+	            if (c.fromVm) {
+	                // set property on view
+	                ReactiveObject.set(view, viewProp, c.value);
+	            }
+	            else {
+	                // set property on view model
+	                _this.set(viewModelProp, c.value);
+	            }
+	        });
+	    };
+	    /**
+	     * Propagates values from the specified property on this object to the specified property on the given view object.
+	     * @param view The object that should be bound to this object.
+	     * @param viewModelProp The property on this object that should set to the other property.
+	     * @param viewProp The property on the view object that should recieve values from the other property.
+	     * @return Subscription
+	     */
+	    ReactiveObject.prototype.oneWayBind = function (view, viewModelProp, viewProp, scheduler) {
+	        var viewModelChanges = this.whenAny(viewModelProp).map(function (c) { return ({
+	            fromVm: true,
+	            value: c.newPropertyValue
+	        }); });
+	        var changes = Rx_1.Observable.merge(viewModelChanges)
+	            .distinctUntilChanged(function (c) { return c.value; })
+	            .startWith({
+	            fromVm: true,
+	            value: this.get(viewModelProp)
+	        });
+	        // TODO: Add support for error handling
+	        return changes.subscribe(function (c) {
+	            if (c.fromVm) {
+	                // set property on view
+	                ReactiveObject.set(view, viewProp, c.value);
+	            }
+	        });
+	    };
+	    /**
+	     * Binds values recieved from the given observable to the specified property on the given object.
+	     * @param observable The Observable object whose values should be piped to the specified property.
+	     * @param view The object that the values should be piped to.
+	     * @param viewProp The property on the object that the values should be piped to.
+	     */
+	    ReactiveObject.bindObservable = function (observable, view, viewProp, scheduler) {
+	        return observable.subscribe(function (value) {
+	            ReactiveObject.set(view, viewProp, value);
+	        });
+	    };
 	    ReactiveObject.prototype.when = function (observable) {
 	        if (typeof observable === "string") {
 	            return this.whenSingle(observable, true).map(function (e) { return e.newPropertyValue; }).switch();
@@ -313,18 +540,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	}());
 	exports.ReactiveObject = ReactiveObject;
 	//# sourceMappingURL=reactive-object.js.map
-
-/***/ },
-/* 2 */
-/***/ function(module, exports) {
-
-	module.exports = __WEBPACK_EXTERNAL_MODULE_2__;
-
-/***/ },
-/* 3 */
-/***/ function(module, exports) {
-
-	module.exports = __WEBPACK_EXTERNAL_MODULE_3__;
 
 /***/ },
 /* 4 */
@@ -414,7 +629,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Observable_1 = __webpack_require__(2);
+	var Rx_1 = __webpack_require__(2);
 	/**
 	 * Creates a new cold observable that maps values observed from the source Observable to values resolved from a ReactiveCommand.
 	 * Essentially, this means that the command is executed whenever the source Observable resolves a new value, so long as the command is executable at the moment.
@@ -433,7 +648,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        canExecute = commandObservable.map(function (c) { return c.canExecute; }).switch();
 	    }
 	    else {
-	        commandObservable = Observable_1.Observable.of(command);
+	        commandObservable = Rx_1.Observable.of(command);
 	        canExecute = command.canExecute;
 	    }
 	    var results = source
@@ -458,16 +673,18 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 7 */
 /***/ function(module, exports) {
 
-	module.exports = __WEBPACK_EXTERNAL_MODULE_7__;
+	module.exports = null;
 
 /***/ },
 /* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Observable_1 = __webpack_require__(2);
-	var Subject_1 = __webpack_require__(3);
+	var Rx_1 = __webpack_require__(2);
 	var rx_app_1 = __webpack_require__(9);
+	// Implementation mostly stolen from:
+	// https://github.com/reactiveui/ReactiveUI/blob/rxui7-master/ReactiveUI/ReactiveCommand.cs
+	// All credit goes to those creators
 	/**
 	 * Defines a class that represents a command that can run operations in the background.
 	 */
@@ -479,6 +696,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param scheduler The scheduler that all of the results should be observed on.
 	     */
 	    function ReactiveCommand(task, canRun, scheduler) {
+	        var _this = this;
 	        this.task = task;
 	        this.canRun = canRun;
 	        this.scheduler = scheduler;
@@ -491,16 +709,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	        if (!scheduler) {
 	            throw new Error("The scheduler parameter must be supplied");
 	        }
-	        this.subject = new Subject_1.Subject();
-	        this.executing = new Subject_1.Subject();
+	        this._executionInfo = new Rx_1.Subject();
+	        this._synchronizedExcecutionInfo = this._executionInfo;
+	        this._exceptions = new Rx_1.Subject();
 	        // Implementation mostly taken from:
 	        // https://github.com/reactiveui/ReactiveUI/blob/rxui7-master/ReactiveUI/ReactiveCommand.cs#L628
-	        this._isExecuting = this.executing
+	        this._isExecuting = this._synchronizedExcecutionInfo
+	            .observeOn(scheduler)
+	            .map(function (info) { return info.demarcation === ExecutionDemarcation.Begin; })
 	            .startWith(false)
 	            .distinctUntilChanged()
 	            .publishReplay(1)
 	            .refCount();
 	        this._canExecute = this.canRun
+	            .catch(function (ex) {
+	            _this._exceptions.next(ex);
+	            return Rx_1.Observable.of(false);
+	        })
 	            .startWith(false)
 	            .combineLatest(this._isExecuting, function (canRun, isExecuting) {
 	            return canRun && !isExecuting;
@@ -508,7 +733,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	            .distinctUntilChanged()
 	            .publishReplay(1)
 	            .refCount();
-	        this._results = this.subject.observeOn(scheduler);
+	        this._results = this._synchronizedExcecutionInfo
+	            .observeOn(scheduler)
+	            .filter(function (info) { return info.demarcation === ExecutionDemarcation.EndWithResult; })
+	            .map(function (info) { return info.result; });
 	        // Make sure that can execute is triggered to be a hot observable.
 	        this._canExecuteSubscription = this._canExecute.subscribe();
 	    }
@@ -536,7 +764,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return scheduler || rx_app_1.RxApp.mainThreadScheduler;
 	    };
 	    ReactiveCommand.defaultCanRun = function (canRun) {
-	        return canRun || Observable_1.Observable.of(true);
+	        return canRun || Rx_1.Observable.of(true);
 	    };
 	    /**
 	     * Creates a new Reactive Command that can run the given synchronous task when executed.
@@ -548,11 +776,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return new ReactiveCommand(function (args) {
 	            var result = task(args);
 	            if (typeof result !== "undefined") {
-	                return Observable_1.Observable.of(result);
+	                return Rx_1.Observable.of(result);
 	            }
 	            else {
 	                // TODO: replace with Unit
-	                return Observable_1.Observable.of(null);
+	                return Rx_1.Observable.of(null);
 	            }
 	        }, ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
 	    };
@@ -563,7 +791,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param scheduler The scheduler that all of the results from the task should be observed on.
 	     */
 	    ReactiveCommand.createFromTask = function (task, canRun, scheduler) {
-	        return new ReactiveCommand(function (args) { return Observable_1.Observable.fromPromise(task(args)); }, ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
+	        return new ReactiveCommand(function (args) { return Rx_1.Observable.fromPromise(task(args)); }, ReactiveCommand.defaultCanRun(canRun), ReactiveCommand.defaultScheduler(scheduler));
 	    };
 	    /**
 	     * Creates a new Reactive Command that can run the given task when executed.
@@ -581,32 +809,50 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveCommand.prototype.executeAsync = function (arg) {
 	        var _this = this;
 	        if (arg === void 0) { arg = null; }
-	        this.executing.next(true);
-	        var o = null;
-	        var observable = Observable_1.Observable.create(function (sub) {
-	            try {
-	                if (o == null) {
-	                    o = _this.task(arg);
-	                }
-	                var subscription = o.subscribe(sub);
-	                return function () {
-	                    subscription.unsubscribe();
-	                };
-	            }
-	            catch (error) {
-	                sub.error(error);
-	                sub.complete();
-	            }
-	        });
-	        observable.subscribe(function (result) {
-	            _this.subject.next(result);
-	        }, function (err) {
-	            _this.subject.error(err);
-	            _this.executing.next(false);
-	        }, function () {
-	            _this.executing.next(false);
-	        });
-	        return observable.observeOn(this.scheduler);
+	        // this.executing.next(true);
+	        // var o = null;
+	        try {
+	            return Rx_1.Observable.defer(function () {
+	                _this._synchronizedExcecutionInfo.next(ExecutionInfo.createBegin());
+	                return Rx_1.Observable.empty();
+	            })
+	                .concat(this.task(arg))
+	                .do(function (result) { return _this._synchronizedExcecutionInfo.next(ExecutionInfo.createResult(result)); }, null, function () { return _this._synchronizedExcecutionInfo.next(ExecutionInfo.createEnded()); })
+	                .catch(function (ex) {
+	                _this._synchronizedExcecutionInfo.next(ExecutionInfo.createFail());
+	                _this._exceptions.next(ex);
+	                return Rx_1.Observable.throw(ex);
+	            })
+	                .publishLast()
+	                .refCount();
+	        }
+	        catch (ex) {
+	            this._exceptions.next(ex);
+	            return Rx_1.Observable.throw(ex);
+	        }
+	        // var observable = Observable.create(sub => {
+	        //     try {
+	        //         if(o == null) {
+	        //             o = this.task(arg);
+	        //         }
+	        //         var subscription = o.subscribe(sub);
+	        //         return () => {
+	        //             subscription.unsubscribe();
+	        //         };
+	        //     } catch (error) {
+	        //         sub.error(error);
+	        //         sub.complete();
+	        //     }
+	        // });
+	        // observable.subscribe(result => {
+	        //     this.subject.next(result);
+	        // }, err => {
+	        //     this.subject.error(err);
+	        //     this.executing.next(false);
+	        // }, () => {
+	        //     this.executing.next(false);
+	        // });
+	        // return observable.observeOn(this.scheduler);
 	    };
 	    /**
 	     * Executes this command asynchronously if the latest observed value from canExecute is true.
@@ -637,6 +883,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return ReactiveCommand;
 	}());
 	exports.ReactiveCommand = ReactiveCommand;
+	var ExecutionInfo = (function () {
+	    function ExecutionInfo(demarcation, result) {
+	        this.demarcation = demarcation;
+	        this.result = result;
+	    }
+	    ExecutionInfo.createBegin = function () {
+	        return new ExecutionInfo(ExecutionDemarcation.Begin, null);
+	    };
+	    ExecutionInfo.createResult = function (result) {
+	        return new ExecutionInfo(ExecutionDemarcation.EndWithResult, result);
+	    };
+	    ExecutionInfo.createFail = function () {
+	        return new ExecutionInfo(ExecutionDemarcation.EndWithException, null);
+	    };
+	    ExecutionInfo.createEnded = function () {
+	        return new ExecutionInfo(ExecutionDemarcation.Ended, null);
+	    };
+	    return ExecutionInfo;
+	}());
+	var ExecutionDemarcation;
+	(function (ExecutionDemarcation) {
+	    ExecutionDemarcation[ExecutionDemarcation["Begin"] = 0] = "Begin";
+	    ExecutionDemarcation[ExecutionDemarcation["EndWithResult"] = 1] = "EndWithResult";
+	    ExecutionDemarcation[ExecutionDemarcation["EndWithException"] = 2] = "EndWithException";
+	    ExecutionDemarcation[ExecutionDemarcation["Ended"] = 3] = "Ended";
+	})(ExecutionDemarcation || (ExecutionDemarcation = {}));
 	//# sourceMappingURL=reactive-command.js.map
 
 /***/ },
@@ -645,7 +917,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	"use strict";
 	var asap_1 = __webpack_require__(10);
-	var queue_1 = __webpack_require__(11);
+	var queue_1 = __webpack_require__(10);
 	var Schedulers = {
 	    asap: asap_1.asap,
 	    queue: queue_1.queue
@@ -656,42 +928,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	var RxApp = (function () {
 	    function RxApp() {
 	    }
-	    Object.defineProperty(RxApp, "mainThreadScheduler", {
-	        /**
-	         * Gets a scheduler that can be used to scheduler work on the main UI thread.
-	         */
-	        get: function () {
-	            return Schedulers.queue;
-	        },
-	        enumerable: true,
-	        configurable: true
-	    });
-	    Object.defineProperty(RxApp, "immediateScheduler", {
-	        /**
-	         * Gets a scheduler that executes work as soon as it is scheduled.
-	         */
-	        get: function () {
-	            return Schedulers.asap;
-	        },
-	        enumerable: true,
-	        configurable: true
-	    });
 	    return RxApp;
 	}());
 	exports.RxApp = RxApp;
+	RxApp.mainThreadScheduler = Schedulers.queue;
+	RxApp.immediateScheduler = Schedulers.asap;
 	//# sourceMappingURL=rx-app.js.map
 
 /***/ },
 /* 10 */
 /***/ function(module, exports) {
 
-	module.exports = __WEBPACK_EXTERNAL_MODULE_10__;
-
-/***/ },
-/* 11 */
-/***/ function(module, exports) {
-
-	module.exports = __WEBPACK_EXTERNAL_MODULE_11__;
+	module.exports = Rx.Scheduler;
 
 /***/ }
 /******/ ])

@@ -1,7 +1,7 @@
 import {ReactiveObject} from "../../src/reactive-object";
 import {ReactiveCommand} from "../../src/reactive-command";
 import {MyOtherObject} from "./my-other-object";
-import {Observable} from "rxjs/Observable";
+import {Observable} from "rxjs/Rx";
 
 export class MyObject extends ReactiveObject {
     public get child(): MyOtherObject {

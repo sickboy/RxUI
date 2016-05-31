@@ -37,7 +37,9 @@ jspm_packages
 *.js
 *.map.js
 *.d.ts
-!proxy-shim.d.ts
+!typings/**/*.d.ts
 !references.d.ts
 !webpack.config.js
+!karma.conf.js
+!karma.conf-ci.js
 !bundles/

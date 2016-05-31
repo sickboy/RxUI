@@ -630,16 +630,10 @@ describe("ReactiveObject", () => {
             }
 
             var obj: MySpecialObject = new MySpecialObject();
-
+            var events: any[] = [];
             obj.whenAnyValue(o => o.prop.child.child.prop)
-                .bufferTime(10)
-                .subscribe(events => {
-                    expect(events.length).to.equal(4);
-                    expect(events[0]).to.equal("value");
-                    expect(events[1]).to.be.null;
-                    expect(events[2]).to.equal("great!");
-                    expect(events[3]).to.be.null;
-                    done();
+                .subscribe(event => {
+                    events.push(event);
                 }, err => done(err));
 
             var other = new MyOtherObject();
@@ -653,6 +647,13 @@ describe("ReactiveObject", () => {
             child2.prop = "great!";
             other.child = child1;
             child2.prop = null;
+
+            expect(events.length).to.equal(4);
+            expect(events[0]).to.equal("value");
+            expect(events[1]).to.be.null;
+            expect(events[2]).to.equal("great!");
+            expect(events[3]).to.be.null;
+            done();
         });
     });
 
@@ -854,24 +855,24 @@ describe("ReactiveObject", () => {
         });
     });
     describe(".bindObservable", () => {
-       it("should return a subscription", () => {
-           var observable = Observable.of(true, false);
-           var view = {
-               customProp: "value"
-           };
-           var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
-           
-           expect(sub).to.be.instanceOf(Subscription);
-       });
-       it("should pipe values from the observable to the view", () => {
-           var observable = Observable.of(true, false);
-           var view = {
-               customProp: "value"
-           };
-           var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
-           
-           // Both values are piped through immediately
-           expect(view.customProp).to.be.false;
-       });
+        it("should return a subscription", () => {
+            var observable = Observable.of(true, false);
+            var view = {
+                customProp: "value"
+            };
+            var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
+
+            expect(sub).to.be.instanceOf(Subscription);
+        });
+        it("should pipe values from the observable to the view", () => {
+            var observable = Observable.of(true, false);
+            var view = {
+                customProp: "value"
+            };
+            var sub = ReactiveObject.bindObservable(observable, view, view => view.customProp);
+
+            // Both values are piped through immediately
+            expect(view.customProp).to.be.false;
+        });
     });
 });

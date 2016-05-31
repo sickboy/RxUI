@@ -7,11 +7,14 @@
     "build": "tsc",
     "build:package": "npm run build && npm run webpack",
     "webpack": "webpack --display-modules",
-    "test": "npm run build && npm run mocha",
+    "test": "npm run build:package && npm run karma",
     "mocha": "mocha test",
     "mocha:w": "mocha -w test",
+    "karma": "karma start karma.conf.js",
+    "karma:ci": "karma start karma.conf-ci.js",
     "test:w": "concurrent \"npm run build:w\" \"npm run mocha:w\"",
-    "prepublish": "npm run build:package"
+    "prepublish": "npm run build:package",
+    "test:ci": "npm run build:package && karma start karma.conf-ci.js"
   },
   "main": "index.js",
   "keywords": [
@@ -29,12 +32,20 @@
     "rxjs": "^5.0.0-beta.8"
   },
   "devDependencies": {
+    "bluebird": "^3.4.0",
     "chai": "^3.5.0",
     "concurrently": "^2.0.0",
     "expect.js": "^0.3.1",
+    "karma": "^0.13.22",
+    "karma-chrome-launcher": "^1.0.1",
+    "karma-jasmine": "^1.0.2",
+    "karma-mocha": "^1.0.1",
+    "karma-mocha-reporter": "^2.0.3",
+    "karma-sauce-launcher": "^1.0.0",
     "mocha": "^2.4.5",
     "typescript": "^1.8.10",
-    "webpack": "^1.12.14"
+    "webpack": "^1.12.14",
+    "webpack-node-externals": "^1.2.0"
   },
   "homepage": "https://github.com/KallynGowdy/RxUI",
   "repository": {
