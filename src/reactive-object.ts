@@ -14,8 +14,6 @@ import "harmony-reflect";
  */
 export class ReactiveObject {
 
-    private static IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX: RegExp = /property\s+'(\w+)'/g;
-    private static SAFARI_IOS_PROPERTY_ERROR_REGEX: RegExp = /property\s+'(\w+)'/g;
     private _propertyChanged: Subject<PropertyChangedEventArgs<any>>;
 
     /**
@@ -179,13 +177,12 @@ export class ReactiveObject {
                 var propertyName: string = null;
                 // We may be able to retrieve the property name from the error
                 // TODO: Add Support for Mobile Safari Error Messages
-                
-                var match = ReactiveObject.IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX.exec(error.message);
+                var match = (/property\s+'(\w+)'/g).exec(error.message);
                 if (match) {
                     propertyName = match[1];
                 }
                 if(!propertyName) {
-                    match = ReactiveObject.SAFARI_IOS_PROPERTY_ERROR_REGEX.exec(error.message);
+                    match = (/evaluating \'([\w]+\.?)+\'/g).exec(error.message);
                     if(match) {
                         propertyName = match[match.length - 1];
                     }
@@ -200,7 +197,6 @@ export class ReactiveObject {
                     });
                     ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
                     return;
-                    
                 }
             }
             throw ex;

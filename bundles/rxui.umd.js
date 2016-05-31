@@ -248,12 +248,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	                var propertyName = null;
 	                // We may be able to retrieve the property name from the error
 	                // TODO: Add Support for Mobile Safari Error Messages
-	                var match = ReactiveObject.IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX.exec(error.message);
+	                var match = (/property\s+'(\w+)'/g).exec(error.message);
 	                if (match) {
 	                    propertyName = match[1];
 	                }
 	                if (!propertyName) {
-	                    match = ReactiveObject.SAFARI_IOS_PROPERTY_ERROR_REGEX.exec(error.message);
+	                    match = (/evaluating \'([\w]+\.?)+\'/g).exec(error.message);
 	                    if (match) {
 	                        propertyName = match[match.length - 1];
 	                    }
@@ -536,8 +536,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.prototype.invokeCommandWhen = function (observable, command) {
 	        return invoke_command_1.invokeCommand(this.when(observable), this, command);
 	    };
-	    ReactiveObject.IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX = /property\s+'(\w+)'/g;
-	    ReactiveObject.SAFARI_IOS_PROPERTY_ERROR_REGEX = /property\s+'(\w+)'/g;
 	    return ReactiveObject;
 	}());
 	exports.ReactiveObject = ReactiveObject;
