@@ -25,11 +25,12 @@ var customLaunchers = {
       platform: 'OS X 10.9',
       version: '7.1'
     },
-    sl_android_40: {
-      base: 'SauceLabs',
-      browserName: 'emulator',
-      platform: 'Android 4.0 Emulator'
-    },
+    // sl_android_40: {
+    //   base: 'SauceLabs',
+    //   browserName: 'android 4.0 emulator',
+    //   platform: 'Android 4.0',
+    //   version: "4.0"
+    // },
     sl_ie_11: {
       base: 'SauceLabs',
       browserName: 'internet explorer',

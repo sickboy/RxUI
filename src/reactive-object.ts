@@ -14,6 +14,8 @@ import "harmony-reflect";
  */
 export class ReactiveObject {
 
+    private static IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX: RegExp = /property\s+'(\w+)'/g;
+    private static SAFARI_IOS_PROPERTY_ERROR_REGEX: RegExp = /property\s+'(\w+)'/g;
     private _propertyChanged: Subject<PropertyChangedEventArgs<any>>;
 
     /**
@@ -168,29 +170,37 @@ export class ReactiveObject {
 
     private static evaluateLambdaErrors(path: string[], expr: (o: any) => any, currentObj: any = null): void {
         // Hack the errors that null reference exceptions return to retrieve property names
-        // Works in IE 11
+        // Works in IE 11, Chrome 35 and Firefox 30
         try {
             expr(currentObj);
         } catch (ex) {
             if (ex instanceof TypeError) {
                 var error = <TypeError>ex;
+                var propertyName: string = null;
                 // We may be able to retrieve the property name from the error
                 // TODO: Add Support for Mobile Safari Error Messages
-                var regex = /property\s+'(\w+)'/g;
-                var match = regex.exec(error.message);
+                
+                var match = ReactiveObject.IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX.exec(error.message);
                 if (match) {
-                    var propertyName = match[1];
-                    if (propertyName) {
-                        path.push(propertyName);
-                        currentObj = currentObj || {};
-                        var currentPath = currentObj;
-                        path.forEach((p, i) => {
-                            currentPath[p] = i < path.length - 1 ? {} : null;
-                            currentPath = currentPath[p];
-                        });
-                        ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
-                        return;
+                    propertyName = match[1];
+                }
+                if(!propertyName) {
+                    match = ReactiveObject.SAFARI_IOS_PROPERTY_ERROR_REGEX.exec(error.message);
+                    if(match) {
+                        propertyName = match[match.length - 1];
                     }
+                }
+                if(propertyName) {
+                    path.push(propertyName);
+                    currentObj = currentObj || {};
+                    var currentPath = currentObj;
+                    path.forEach((p, i) => {
+                        currentPath[p] = i < path.length - 1 ? {} : null;
+                        currentPath = currentPath[p];
+                    });
+                    ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
+                    return;
+                    
                 }
             }
             throw ex;

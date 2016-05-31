@@ -238,29 +238,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.evaluateLambdaErrors = function (path, expr, currentObj) {
 	        if (currentObj === void 0) { currentObj = null; }
 	        // Hack the errors that null reference exceptions return to retrieve property names
-	        // Works in IE 11
+	        // Works in IE 11, Chrome 35 and Firefox 30
 	        try {
 	            expr(currentObj);
 	        }
 	        catch (ex) {
 	            if (ex instanceof TypeError) {
 	                var error = ex;
+	                var propertyName = null;
 	                // We may be able to retrieve the property name from the error
-	                var regex = /property\s+'(\w+)'/g;
-	                var match = regex.exec(error.message);
+	                // TODO: Add Support for Mobile Safari Error Messages
+	                var match = ReactiveObject.IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX.exec(error.message);
 	                if (match) {
-	                    var propertyName = match[1];
-	                    if (propertyName) {
-	                        path.push(propertyName);
-	                        currentObj = currentObj || {};
-	                        var currentPath = currentObj;
-	                        path.forEach(function (p, i) {
-	                            currentPath[p] = i < path.length - 1 ? {} : null;
-	                            currentPath = currentPath[p];
-	                        });
-	                        ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
-	                        return;
+	                    propertyName = match[1];
+	                }
+	                if (!propertyName) {
+	                    match = ReactiveObject.SAFARI_IOS_PROPERTY_ERROR_REGEX.exec(error.message);
+	                    if (match) {
+	                        propertyName = match[match.length - 1];
 	                    }
+	                }
+	                if (propertyName) {
+	                    path.push(propertyName);
+	                    currentObj = currentObj || {};
+	                    var currentPath = currentObj;
+	                    path.forEach(function (p, i) {
+	                        currentPath[p] = i < path.length - 1 ? {} : null;
+	                        currentPath = currentPath[p];
+	                    });
+	                    ReactiveObject.evaluateLambdaErrors(path, expr, currentObj);
+	                    return;
 	                }
 	            }
 	            throw ex;
@@ -529,6 +536,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.prototype.invokeCommandWhen = function (observable, command) {
 	        return invoke_command_1.invokeCommand(this.when(observable), this, command);
 	    };
+	    ReactiveObject.IE_FIREFOX_CHROME_PROPERTY_ERROR_REGEX = /property\s+'(\w+)'/g;
+	    ReactiveObject.SAFARI_IOS_PROPERTY_ERROR_REGEX = /property\s+'(\w+)'/g;
 	    return ReactiveObject;
 	}());
 	exports.ReactiveObject = ReactiveObject;
