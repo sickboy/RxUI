@@ -1,10 +1,10 @@
 import {ReactiveCommand} from "../src/reactive-command";
 import {ReactiveObject} from "../src/reactive-object";
-import {TestScheduler} from "rxjs/testing/TestScheduler";
-import {Observable, Subject} from "rxjs/Rx";
+import {Observable, Subject, TestScheduler} from "rxjs/Rx";
 import {expect} from "chai";
 import {MyObject} from "./models/my-object";
 import {MyOtherObject} from "./models/my-other-object";
+import Promise = require("bluebird");
 
 describe("ReactiveCommand", () => {
     describe(".createFromTask()", () => {
@@ -129,13 +129,11 @@ describe("ReactiveCommand", () => {
                 isValid,
                 innerCommand.isExecuting.map(ie => !ie),
                 (valid, notRunning) => {
-                    console.log(valid, notRunning);
                     return valid && notRunning
                 }
             )
             var count: number = 0;
             var command: ReactiveCommand<any, any> = ReactiveCommand.createFromObservable((a) => {
-                console.log("hit");
                 count++;
                 obj.value = new MyInnerClass();
                 return innerCommand.executeAsync();
@@ -186,7 +184,7 @@ describe("ReactiveCommand", () => {
 
             var sub = command.executeAsync().subscribe(work);
 
-            // Expect two actions to be scheduled.
+            // Expect three actions to be scheduled.
             // One for the results of the execution, one for the results of the command, and one for the exceptions
             // that the command emits.
             expect(scheduler.actions.length).to.equal(3);

@@ -1,4 +1,4 @@
-import {Observable} from "rxjs/Observable";
+import {Observable} from "rxjs/Rx";
 import {ReactiveObject} from "../reactive-object";
 import {ReactiveCommand} from "../reactive-command";
 
