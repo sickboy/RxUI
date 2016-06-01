@@ -238,7 +238,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.evaluateLambdaErrors = function (path, expr, currentObj) {
 	        if (currentObj === void 0) { currentObj = null; }
 	        // Hack the errors that null reference exceptions return to retrieve property names
-	        // Works in IE 11, Chrome 35 and Firefox 30
+	        // Works in IE 9+, Chrome 35+, Firefox 30+, Safari 7+
+	        // This hack is needed to support lambda expressions in browsers where proxy support is
+	        // not yet available. 
+	        // Because lambda expressions need to represent any combination of valid property names for an object,
+	        // we need to be able to intercept any call to retrieve a property value.
+	        // In browsers that do not provide this functionality, we take advantage of the fact that error messages
+	        // include property names in them. 
+	        // For example, in Chrome 50+, the following code:
+	        // 
+	        // var myObj = null;
+	        // var myPropVar = myObj.myProp;
+	        //
+	        // throws the following error:
+	        //
+	        // "TypeError: Cannot read property 'myProp' of null"
+	        //
+	        // As you can read, the error contains the name of the property that was attempted to be accessed, which is exactly what we want. :)
+	        // The error message is mostly the same for IE and Firefox, but not for Safari, hence the second regex. 
 	        try {
 	            expr(currentObj);
 	        }
@@ -246,13 +263,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	            if (ex instanceof TypeError) {
 	                var error = ex;
 	                var propertyName = null;
-	                // We may be able to retrieve the property name from the error
-	                // TODO: Add Support for Mobile Safari Error Messages
+	                // Regex for IE, Chrome & Firefox error messages
 	                var match = (/property\s+'(\w+)'/g).exec(error.message);
 	                if (match) {
 	                    propertyName = match[1];
 	                }
 	                if (!propertyName) {
+	                    // Regex for Safari (iOS & OS X) error messages
 	                    match = (/evaluating \'([\w]+\.?)+\'/g).exec(error.message);
 	                    if (match) {
 	                        propertyName = match[match.length - 1];

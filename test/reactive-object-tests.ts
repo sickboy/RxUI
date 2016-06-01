@@ -7,19 +7,9 @@ import {expect} from "chai";
 import {MyObject} from "./models/my-object";
 import {MyOtherObject} from "./models/my-other-object";
 import {IViewBindingHelper} from "../src/view";
+import {ViewBindingHelper} from "./models/view-binding-helper";
 
 describe("ReactiveObject", () => {
-    class ViewBindingHelper implements IViewBindingHelper {
-        public observeProp(obj: any, prop: string, emitCurrentVal: boolean, callback: Function): Function {
-            obj.changed = (newVal: any) => {
-                callback(new PropertyChangedEventArgs<any>(obj, prop, newVal));
-            };
-
-            return () => {
-                obj.changed = null;
-            }
-        }
-    }
     describe("#set()", () => {
         it("should change the value retrieved by .get()", () => {
             var obj: ReactiveObject = new ReactiveObject();
