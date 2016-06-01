@@ -197,14 +197,14 @@ export class ReactiveObject {
                 if (match) {
                     propertyName = match[1];
                 }
-                if(!propertyName) {
+                if (!propertyName) {
                     // Regex for Safari (iOS & OS X) error messages
                     match = (/evaluating \'([\w]+\.?)+\'/g).exec(error.message);
-                    if(match) {
+                    if (match) {
                         propertyName = match[match.length - 1];
                     }
                 }
-                if(propertyName) {
+                if (propertyName) {
                     path.push(propertyName);
                     currentObj = currentObj || {};
                     var currentPath = currentObj;
@@ -676,6 +676,10 @@ export class ReactiveObject {
                 value: this.get<TViewModelProp>(viewModelProp)
             });
 
+        if (scheduler) {
+            changes = changes.observeOn(scheduler);
+        }
+
         // TODO: Add support for error handling
         return changes.subscribe(c => {
             if (c.fromVm) {
@@ -696,7 +700,11 @@ export class ReactiveObject {
         view: TView,
         viewProp: (((o: TView) => TViewProp) | string),
         scheduler?: Scheduler): Subscription {
-        return observable.subscribe(value => {
+        var o = observable.distinctUntilChanged();
+        if (scheduler) {
+            o = o.observeOn(scheduler);
+        }
+        return o.subscribe(value => {
             ReactiveObject.set(view, viewProp, <any>value);
         });
     }
@@ -722,5 +730,15 @@ export class ReactiveObject {
      */
     public invokeCommandWhen<T>(observable: string | Observable<any>, command: string | ReactiveCommand<any, T>): Observable<T> {
         return invokeCommand(this.when(observable), this, command);
+    }
+
+    /**
+     * Creates a one way binding between the given observable and the specified property on this object.
+     * @param observable The observable that should be bound to the property.
+     * @param property The property that should assume the most recently observed value from the observable.
+     * @param scheduler The scheduler that should be used to observe values from the given observable.
+     */
+    public toProperty<TObservable, TProp>(observable: Observable<TObservable>, property: (((o: this) => TProp) | string), scheduler?: Scheduler): Subscription {
+        return ReactiveObject.bindObservable(observable, this, property, scheduler);
     }
 }
