@@ -36,7 +36,9 @@ jspm_packages
 # Built Files
 *.js
 *.map.js
-*.d.ts
+**/*.js
+**/*.js.map
+**/*.d.ts
 !typings/**/*.d.ts
 !references.d.ts
 !webpack.config.js
