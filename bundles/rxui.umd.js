@@ -512,6 +512,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            fromVm: true,
 	            value: this.get(viewModelProp)
 	        });
+	        if (scheduler) {
+	            changes = changes.observeOn(scheduler);
+	        }
 	        // TODO: Add support for error handling
 	        return changes.subscribe(function (c) {
 	            if (c.fromVm) {
@@ -527,7 +530,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param viewProp The property on the object that the values should be piped to.
 	     */
 	    ReactiveObject.bindObservable = function (observable, view, viewProp, scheduler) {
-	        return observable.subscribe(function (value) {
+	        var o = observable.distinctUntilChanged();
+	        if (scheduler) {
+	            o = o.observeOn(scheduler);
+	        }
+	        return o.subscribe(function (value) {
 	            ReactiveObject.set(view, viewProp, value);
 	        });
 	    };
@@ -552,6 +559,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	     */
 	    ReactiveObject.prototype.invokeCommandWhen = function (observable, command) {
 	        return invoke_command_1.invokeCommand(this.when(observable), this, command);
+	    };
+	    /**
+	     * Creates a one way binding between the given observable and the specified property on this object.
+	     * @param observable The observable that should be bound to the property.
+	     * @param property The property that should assume the most recently observed value from the observable.
+	     * @param scheduler The scheduler that should be used to observe values from the given observable.
+	     */
+	    ReactiveObject.prototype.toProperty = function (observable, property, scheduler) {
+	        return ReactiveObject.bindObservable(observable, this, property, scheduler);
 	    };
 	    return ReactiveObject;
 	}());

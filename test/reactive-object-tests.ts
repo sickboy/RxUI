@@ -875,4 +875,40 @@ describe("ReactiveObject", () => {
             expect(view.customProp).to.be.false;
         });
     });
+    describe("#toProperty(observable, prop)", () => {
+        it("should return a subscription", () => {
+            var obj = new ReactiveObject();
+            var sub = obj.toProperty(Observable.of(true), "prop");
+            expect(sub).to.be.instanceOf(Subscription);
+        });
+        it("should bind the latest value from the given observable to the given property", () => {
+            var obj = new ReactiveObject();
+            var sub = obj.toProperty(Observable.of(false, true), "prop");
+            expect(obj.get("prop")).to.be.true;
+        });
+        it("should raise a property changed event when the given observable resolves", () => {
+            var obj = new ReactiveObject();
+            var events: PropertyChangedEventArgs<boolean>[] = [];
+            obj.whenAny("prop").subscribe(e => events.push(e));
+            var sub = obj.toProperty(Observable.of(false, true), "prop");
+            expect(events.length).to.equal(2);
+            expect(events[0].newPropertyValue).to.be.false;
+            expect(events[1].newPropertyValue).to.be.true;
+        });
+        it("should ignore consecutive duplicate values", () => {
+            var obj = new ReactiveObject();
+            var events: PropertyChangedEventArgs<boolean>[] = [];
+            obj.whenAny("prop").subscribe(e => events.push(e));
+            var sub = obj.toProperty(Observable.of(false, false, false, true), "prop");
+            expect(events.length).to.equal(2);
+            expect(events[0].newPropertyValue).to.be.false;
+            expect(events[1].newPropertyValue).to.be.true;
+        });
+        it("should not support setting nested values", () => {
+            var obj = new ReactiveObject();
+            expect(() => {
+                var sub = obj.toProperty(Observable.of(false, true), "prop.val");
+            }).to.throw("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
+        });
+    });
 });
