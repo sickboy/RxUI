@@ -601,6 +601,11 @@ export class ReactiveObject {
         });
     }
 
+    private mergeChanges<TChanges extends { value: any }>(...changes: Observable<TChanges>[]): Observable<TChanges> {
+        return Observable.merge(...changes)
+            .distinctUntilChanged((v1, v2) => v1 === v2, c => c.value);
+    }
+
     /**
      * Binds the specified property on this object to the specified property on the given other object.
      * @param view The view whose property should be bound to one of this object's properties.
@@ -627,9 +632,7 @@ export class ReactiveObject {
             fromVm: true,
             value: c.newPropertyValue
         }));
-        var changes = Observable.merge(viewChanges, viewModelChanges)
-            .distinctUntilChanged(c => c.value)
-
+        var changes = this.mergeChanges(viewChanges, viewModelChanges)
             // Make sure that the view model's value is piped to the
             // view at first.
             .startWith({
@@ -666,9 +669,7 @@ export class ReactiveObject {
             fromVm: true,
             value: c.newPropertyValue
         }));
-        var changes = Observable.merge(viewModelChanges)
-            .distinctUntilChanged(c => c.value)
-
+        var changes = this.mergeChanges(viewModelChanges)
             // Make sure that the view model's value is piped to the
             // view at first.
             .startWith({

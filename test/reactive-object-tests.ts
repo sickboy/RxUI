@@ -818,6 +818,51 @@ describe("ReactiveObject", () => {
             sub.unsubscribe();
             expect(view.changed).to.be.null;
         });
+        it("should recieve multiple changes from the view and apply them to the view model", () => {
+            var vm = new MyObject();
+            var helper = new ViewBindingHelper();
+            var view = {
+                __viewBindingHelper: helper,
+                changed: null,
+                prop: "property value"
+            };
+            vm.prop1 = "Old Value";
+
+            var sub = vm.bind(view, vm => vm.prop1, view => view.prop);
+
+            expect(view.prop).to.equal("Old Value");
+            expect(view.changed).to.not.be.null;
+
+            view.prop = "New Value";
+            view.changed(view.prop);
+
+            view.prop = "Newer Value";
+            view.changed(view.prop);
+
+            sub.unsubscribe();
+            expect(vm.prop1).to.equal("Newer Value");
+        });
+        it("should recieve multiple changes from the view model and apply them to the view", () => {
+            var vm = new MyObject();
+            var helper = new ViewBindingHelper();
+            var view = {
+                __viewBindingHelper: helper,
+                changed: null,
+                prop: "property value"
+            };
+            vm.prop1 = "Old Value";
+
+            var sub = vm.bind(view, vm => vm.prop1, view => view.prop);
+
+            expect(view.prop).to.equal("Old Value");
+            expect(view.changed).to.not.be.null;
+
+            vm.prop1 = "New Value";
+            vm.prop1 = "Newer Value";
+
+            sub.unsubscribe();
+            expect(view.prop).to.equal("Newer Value");
+        });
     });
     describe("#oneWayBind(view, prop, prop)", () => {
         it("should one way bind to regular objects", () => {
@@ -852,6 +897,26 @@ describe("ReactiveObject", () => {
             var sub = vm.oneWayBind(view, vm => vm.prop1, view => view.customProp);
 
             expect(sub).to.be.instanceOf(Subscription);
+        });
+        it("should recieve multiple values from the view model and apply them to the view", () => {
+            var vm = new MyObject();
+            var helper = new ViewBindingHelper();
+            var view = {
+                __viewBindingHelper: helper,
+                changed: null,
+                prop: "property value"
+            };
+            vm.prop1 = "Old Value";
+
+            var sub = vm.oneWayBind(view, vm => vm.prop1, view => view.prop);
+
+            expect(view.prop).to.equal("Old Value");
+
+            vm.prop1 = "New Value";
+            vm.prop1 = "Newer Value";
+
+            sub.unsubscribe();
+            expect(view.prop).to.equal("Newer Value");
         });
     });
     describe(".bindObservable", () => {

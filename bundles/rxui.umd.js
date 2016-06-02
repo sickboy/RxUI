@@ -455,6 +455,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }
 	        }]));
 	    };
+	    ReactiveObject.prototype.mergeChanges = function () {
+	        var changes = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            changes[_i - 0] = arguments[_i];
+	        }
+	        return Rx_1.Observable.merge.apply(Rx_1.Observable, changes)
+	            .distinctUntilChanged(function (v1, v2) { return v1 === v2; }, function (c) { return c.value; });
+	    };
 	    /**
 	     * Binds the specified property on this object to the specified property on the given other object.
 	     * @param view The view whose property should be bound to one of this object's properties.
@@ -476,8 +484,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            fromVm: true,
 	            value: c.newPropertyValue
 	        }); });
-	        var changes = Rx_1.Observable.merge(viewChanges, viewModelChanges)
-	            .distinctUntilChanged(function (c) { return c.value; })
+	        var changes = this.mergeChanges(viewChanges, viewModelChanges)
 	            .startWith({
 	            fromVm: true,
 	            value: this.get(viewModelProp)
@@ -506,8 +513,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            fromVm: true,
 	            value: c.newPropertyValue
 	        }); });
-	        var changes = Rx_1.Observable.merge(viewModelChanges)
-	            .distinctUntilChanged(function (c) { return c.value; })
+	        var changes = this.mergeChanges(viewModelChanges)
 	            .startWith({
 	            fromVm: true,
 	            value: this.get(viewModelProp)
