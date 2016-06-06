@@ -33,7 +33,7 @@ export function invokeCommand<TObj extends ReactiveObject, TArg, TResult>(source
         .filter(o => o.canExecute && o.command != null)
         .distinctUntilChanged()
         .flatMap(o => {
-            return o.command.executeAsync(o.observedValue);
+            return o.command.execute(o.observedValue);
         });
     return results;
 }

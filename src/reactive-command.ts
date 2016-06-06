@@ -134,9 +134,7 @@ export class ReactiveCommand<TArgs, TResult> {
      * Executes this command asynchronously.
      * Note that this method does not check whether the command is currently executable.
      */
-    public executeAsync(arg: TArgs = null): Observable<TResult> {
-        // this.executing.next(true);
-        // var o = null;
+    public execute(arg: TArgs = null): Observable<TResult> {
         try {
             return Observable.defer(() => {
                 this._synchronizedExcecutionInfo.next(ExecutionInfo.createBegin<TResult>());
@@ -158,37 +156,14 @@ export class ReactiveCommand<TArgs, TResult> {
             this._exceptions.next(ex);
             return Observable.throw(ex);
         }
-        // var observable = Observable.create(sub => {
-        //     try {
-        //         if(o == null) {
-        //             o = this.task(arg);
-        //         }
-        //         var subscription = o.subscribe(sub);
-        //         return () => {
-        //             subscription.unsubscribe();
-        //         };
-        //     } catch (error) {
-        //         sub.error(error);
-        //         sub.complete();
-        //     }
-        // });
-        // observable.subscribe(result => {
-        //     this.subject.next(result);
-        // }, err => {
-        //     this.subject.error(err);
-        //     this.executing.next(false);
-        // }, () => {
-        //     this.executing.next(false);
-        // });
-        // return observable.observeOn(this.scheduler);
     }
 
     /**
      * Executes this command asynchronously if the latest observed value from canExecute is true.
      */
-    public invokeAsync(arg: TArgs = null): Observable<TResult> {
+    public invoke(arg: TArgs = null): Observable<TResult> {
         return this.canExecuteNow().filter(canExecute => canExecute).flatMap(c => {
-            return this.executeAsync(arg);
+            return this.execute(arg);
         });
     }
 
