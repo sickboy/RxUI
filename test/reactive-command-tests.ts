@@ -77,7 +77,7 @@ describe("ReactiveCommand", () => {
                 return Observable.of(false);
             }, Observable.of(true));
 
-            command.canExecute.bufferTime(10).take(1).subscribe((can: boolean[]) => {
+            command.canExecute.bufferCount(3).take(1).subscribe((can: boolean[]) => {
                 expect(can.length).to.equal(3);
                 expect(can[0]).to.be.true;
                 expect(can[1]).to.be.false; // Cannot Execute While Running. 
