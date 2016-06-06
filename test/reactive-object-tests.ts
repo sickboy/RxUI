@@ -712,6 +712,32 @@ describe("ReactiveObject", () => {
 
             obj.get("child").get("child2").get("child3").get("child4").set("prop", "value");
         });
+        it("should handle deep property changes with parents changing", (done) => {
+            var obj: ReactiveObject = new ReactiveObject();
+            var child: ReactiveObject = new ReactiveObject();
+            var child2: ReactiveObject = new ReactiveObject();
+            var child3: ReactiveObject = new ReactiveObject();
+            var child4: ReactiveObject = new ReactiveObject();
+            obj.set("child", child);
+            child.set("child2", child2);
+            child2.set("child3", child3);
+            child3.set("child4", child4);
+            
+            var newChild2: ReactiveObject = new ReactiveObject();
+            var newChild3: ReactiveObject = new ReactiveObject();
+            var newChild4: ReactiveObject = new ReactiveObject();
+            
+            newChild2.set("child3", newChild3);
+            newChild3.set("child4", newChild4);
+            newChild4.set("prop", "value");
+
+            obj.whenAnyValue("child.child2.child3.child4.prop").subscribe(value => {
+                expect(value).to.equal("value");
+                done();
+            }, err => done(err));
+
+            obj.get("child").set("child2", newChild2);
+        });
     });
 
     describe("#bind(view, prop, prop)", () => {
