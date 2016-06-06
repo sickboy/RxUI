@@ -30,13 +30,13 @@ describe("invokeCommand()", () => {
     it("should call executeAsync() on the given command with the observed value as the argument", () => {
         var callCount = 0;
         var callParams = [];
+        var obj = new ReactiveObject();
         var command = ReactiveCommand.createFromObservable(a => {
             callCount++;
             callParams.push(a);
             return Observable.of(true);
-        });
+        }, obj.whenAnyValue("prop").map(p => !!p));
         
-        var obj = new ReactiveObject();
         obj.invokeCommandWhen(obj.whenAnyValue<string>("prop"), command).subscribe();    
         
         obj.set("prop", "value");
@@ -68,13 +68,13 @@ describe("invokeCommand()", () => {
     it("should call executeAsync() on the current command with the observed value as the argument", () => {
         var callCount = 0;
         var callParams = [];
+        var obj = new ReactiveObject();
         var command = ReactiveCommand.createFromObservable(a => {
             callCount++;
             callParams.push(a);
             return Observable.of(true);
-        });
+        }, obj.whenAnyValue("prop").map(p => !!p));
         
-        var obj = new ReactiveObject();
         obj.set("command", command);        
         obj.invokeCommandWhen(obj.whenAnyValue<string>("prop"), "command").subscribe();    
         
