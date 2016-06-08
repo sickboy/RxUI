@@ -442,7 +442,7 @@ export class ReactiveObject {
         }
         iterateProperties(map ? args.slice(0, args.length - 1) : args);
         var observableList = finalProperties.map(prop => {
-            return this.whenSingle(prop);
+            return this.whenSingle(prop, true);
         }).filter(o => o != null);
         if (map) {
             return Observable.combineLatest<TResult>(...observableList, map);

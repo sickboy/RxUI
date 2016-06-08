@@ -398,7 +398,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        iterateProperties(map ? args.slice(0, args.length - 1) : args);
 	        var observableList = finalProperties.map(function (prop) {
-	            return _this.whenSingle(prop);
+	            return _this.whenSingle(prop, true);
 	        }).filter(function (o) { return o != null; });
 	        if (map) {
 	            return Rx_1.Observable.combineLatest.apply(Rx_1.Observable, observableList.concat([map]));
