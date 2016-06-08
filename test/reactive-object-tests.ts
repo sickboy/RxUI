@@ -35,13 +35,12 @@ describe("ReactiveObject", () => {
         it("should emit new PropertyChangedEventArgs after set() is called", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
-            obj.propertyChanged.subscribe(e => {
+            obj.propertyChanged.first().subscribe(e => {
                 expect(e).to.not.be.null;
                 expect(e.propertyName).to.equal("message");
                 expect(e.sender).to.equal(obj);
                 expect(e.newPropertyValue).to.equal("Hello, World!");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.set("message", "Hello, World!");
         });
@@ -107,13 +106,12 @@ describe("ReactiveObject", () => {
             }
 
             var obj: MyReactiveObj = new MyReactiveObj();
-            obj.propertyChanged.subscribe(e => {
+            obj.propertyChanged.first().subscribe(e => {
                 expect(e).to.not.be.null;
                 expect(e.propertyName).to.equal("prop");
                 expect(e.sender).to.equal(obj);
                 expect(e.newPropertyValue).to.equal("newVal");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
             obj.triggerChangeEvent();
         });
 
@@ -151,9 +149,7 @@ describe("ReactiveObject", () => {
                 expect(e.propertyName).to.equal("otherProp");
                 expect(e.sender).to.equal(obj);
                 expect(e.newPropertyValue).to.equal("value");
-
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.otherProp = "value";
         });
@@ -166,9 +162,7 @@ describe("ReactiveObject", () => {
                 expect(e.propertyName).to.equal("prop");
                 expect(e.sender).to.equal(obj.child);
                 expect(e.newPropertyValue).to.equal("value");
-
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.child.prop = "value";
         });
@@ -185,14 +179,12 @@ describe("ReactiveObject", () => {
             child2.child = child3;
             child3.child = child4;
 
-            obj.whenAny(o => o.child.child.child.child.prop).skip(1).subscribe(e => {
+            obj.whenAny(o => o.child.child.child.child.prop).skip(1).first().subscribe(e => {
                 expect(e).to.not.be.null;
                 expect(e.propertyName).to.equal("prop");
                 expect(e.sender).to.equal(child4);
                 expect(e.newPropertyValue).to.equal("value");
-
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.child.child.child.child.prop = "value";
         });
@@ -209,10 +201,9 @@ describe("ReactiveObject", () => {
             child2.child = child3;
             child3.child = child4;
 
-            obj.whenAny(o => o.child.child.child.child.prop, e => e.newPropertyValue).skip(1).subscribe(value => {
+            obj.whenAny(o => o.child.child.child.child.prop, e => e.newPropertyValue).skip(1).first().subscribe(value => {
                 expect(value).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.child.child.child.child.prop = "value";
         });
@@ -249,9 +240,7 @@ describe("ReactiveObject", () => {
                 expect(events[1].propertyName).to.equal("prop");
                 expect(events[1].sender).to.equal(newChild4);
                 expect(events[1].newPropertyValue).to.equal("newValue");
-
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.child.child.child.child.prop = "value";
             obj.child.child = newChild2;
@@ -270,13 +259,12 @@ describe("ReactiveObject", () => {
         it("should observe property events for the given property name", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
-            obj.whenAny("prop").skip(1).subscribe((e: PropertyChangedEventArgs<any>) => {
+            obj.whenAny("prop").skip(1).first().subscribe((e: PropertyChangedEventArgs<any>) => {
                 expect(e).to.not.be.null;
                 expect(e.propertyName).to.equal("prop");
                 expect(e.sender).to.equal(obj);
                 expect(e.newPropertyValue).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.set("prop", "value");
         });
@@ -286,13 +274,12 @@ describe("ReactiveObject", () => {
             var child: ReactiveObject = new ReactiveObject();
             obj.set("child", child);
 
-            obj.whenAny("child.prop").skip(1).subscribe((e: PropertyChangedEventArgs<any>) => {
+            obj.whenAny("child.prop").skip(1).first().subscribe((e: PropertyChangedEventArgs<any>) => {
                 expect(e).to.not.be.null;
                 expect(e.propertyName).to.equal("prop");
                 expect(e.sender).to.equal(child);
                 expect(e.newPropertyValue).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.get("child").set("prop", "value");
         });
@@ -308,13 +295,12 @@ describe("ReactiveObject", () => {
             child2.set("child3", child3);
             child3.set("child4", child4);
 
-            obj.whenAny("child.child2.child3.child4.prop").skip(1).subscribe((e: PropertyChangedEventArgs<any>) => {
+            obj.whenAny("child.child2.child3.child4.prop").skip(1).first().subscribe((e: PropertyChangedEventArgs<any>) => {
                 expect(e).to.not.be.null;
                 expect(e.propertyName).to.equal("prop");
                 expect(e.sender).to.equal(child4);
                 expect(e.newPropertyValue).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.get("child").get("child2").get("child3").get("child4").set("prop", "value");
         });
@@ -351,9 +337,7 @@ describe("ReactiveObject", () => {
                 expect(events[1].propertyName).to.equal("prop");
                 expect(events[1].sender).to.equal(newChild4);
                 expect(events[1].newPropertyValue).to.equal("newValue");
-
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             child4.set("prop", "value");
             obj.get("child").set("child2", newChild2);
@@ -372,6 +356,7 @@ describe("ReactiveObject", () => {
             obj.whenAny(o => o.prop1, o => o.prop2, o => o.prop3, (prop1, prop2, prop3) => [prop1, prop2, prop3])
                 .skip(1)
                 .bufferTime(10)
+                .first()
                 .subscribe(events => {
                     expect(events.length).to.equal(3);
                     
@@ -416,9 +401,7 @@ describe("ReactiveObject", () => {
                     expect(finalEvents[0].sender).to.equal(obj);
                     expect(finalEvents[1].sender).to.equal(obj);
                     expect(finalEvents[2].sender).to.equal(obj);
-
-                    done();
-                }, err => done(err));
+                }, err => done(err), () => done());
 
             obj.prop1 = "newProp1Value";
             obj.prop2 = "newProp2Value";
@@ -437,7 +420,7 @@ describe("ReactiveObject", () => {
                     prop2,
                     prop3
                 }
-            }).skip(3).subscribe(e => {
+            }).skip(3).first().subscribe(e => {
                 expect(e.prop1.propertyName).to.equal("prop1");
                 expect(e.prop2.propertyName).to.equal("prop2");
                 expect(e.prop3.propertyName).to.equal("prop3");
@@ -449,9 +432,7 @@ describe("ReactiveObject", () => {
                 expect(e.prop1.sender).to.equal(obj);
                 expect(e.prop2.sender).to.equal(obj);
                 expect(e.prop3.sender).to.equal(obj);
-
-                done();
-            });
+            }, err => done(err), () => done());
 
             obj.prop1 = "newProp1Value";
             obj.prop2 = "newProp2Value";
@@ -496,7 +477,7 @@ describe("ReactiveObject", () => {
             obj.set("prop2", "prop2Value");
             obj.set("prop3", "prop3Value");
 
-            obj.whenAny<string, string, string>("prop1", "prop2", "prop3").skip(3).subscribe((events: PropertyChangedEventArgs<any>[]) => {
+            obj.whenAny<string, string, string>("prop1", "prop2", "prop3").skip(3).first().subscribe((events: PropertyChangedEventArgs<any>[]) => {
                 expect(events.length).to.equal(3);
                 expect(events[0].propertyName).to.equal("prop1");
                 expect(events[1].propertyName).to.equal("prop2");
@@ -509,9 +490,7 @@ describe("ReactiveObject", () => {
                 expect(events[0].sender).to.equal(obj);
                 expect(events[1].sender).to.equal(obj);
                 expect(events[2].sender).to.equal(obj);
-
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.set("prop1", "newProp1Value");
             obj.set("prop2", "newProp2Value");
@@ -530,7 +509,7 @@ describe("ReactiveObject", () => {
                     prop2,
                     prop3
                 };
-            }).skip(3).subscribe(e => {
+            }).skip(3).first().subscribe(e => {
                 expect(e.prop1.propertyName).to.equal("prop1");
                 expect(e.prop2.propertyName).to.equal("prop2");
                 expect(e.prop3.propertyName).to.equal("prop3");
@@ -542,9 +521,7 @@ describe("ReactiveObject", () => {
                 expect(e.prop1.sender).to.equal(obj);
                 expect(e.prop2.sender).to.equal(obj);
                 expect(e.prop3.sender).to.equal(obj);
-
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.set("prop1", "newProp1Value");
             obj.set("prop2", "newProp2Value");
@@ -562,10 +539,9 @@ describe("ReactiveObject", () => {
 
         it("should observe property values for the given property name", (done) => {
             var obj: MyObject = new MyObject();
-            obj.whenAnyValue(o => o.otherProp).skip(1).subscribe(value => {
+            obj.whenAnyValue(o => o.otherProp).skip(1).first().subscribe(value => {
                 expect(value).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.otherProp = "value";
         });
@@ -573,12 +549,11 @@ describe("ReactiveObject", () => {
         it("should observe property values for the given property names", (done) => {
             var obj: MyObject = new MyObject();
 
-            obj.whenAnyValue(o => o.prop1, o => o.prop2, (prop1, prop2) => [prop1, prop2]).skip(2).subscribe(values => {
+            obj.whenAnyValue(o => o.prop1, o => o.prop2, (prop1, prop2) => [prop1, prop2]).skip(2).first().subscribe(values => {
                 expect(values.length).to.equal(2);
                 expect(values[0]).to.equal("value");
                 expect(values[1]).to.equal("value2");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.prop1 = "value";
             obj.prop2 = "value2";
@@ -596,10 +571,9 @@ describe("ReactiveObject", () => {
             child2.child = child3;
             child3.child = child4;
 
-            obj.whenAnyValue(o => o.child.child.child.child.prop).skip(1).subscribe(value => {
+            obj.whenAnyValue(o => o.child.child.child.child.prop).skip(1).first().subscribe(value => {
                 expect(value).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.child.child.child.child.prop = "value";
         });
@@ -616,10 +590,9 @@ describe("ReactiveObject", () => {
             child2.child = child3;
             child3.child = child4;
 
-            obj.whenAnyValue(o => o.child.child.child.child.prop, v => v === "value").skip(1).subscribe(value => {
+            obj.whenAnyValue(o => o.child.child.child.child.prop, v => v === "value").skip(1).first().subscribe(value => {
                 expect(value).to.be.true;
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.child.child.child.child.prop = "value";
         });
@@ -638,10 +611,9 @@ describe("ReactiveObject", () => {
 
             var obj: MySpecialObject = new MySpecialObject();
 
-            obj.whenAnyValue(o => o.prop.child.child.prop, v => v === "value").skip(1).subscribe(value => {
+            obj.whenAnyValue(o => o.prop.child.child.prop, v => v === "value").skip(1).first().subscribe(value => {
                 expect(value).to.be.true;
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             var other = new MyOtherObject();
             other.child = new MyOtherObject();
@@ -650,7 +622,7 @@ describe("ReactiveObject", () => {
             obj.prop = other;
         });
 
-        it("should handle nulls along the entire path", (done) => {
+        it("should handle nulls along the entire path", () => {
             class MySpecialObject extends ReactiveObject {
                 public get prop(): MyOtherObject {
                     return this.get("prop");
@@ -668,7 +640,7 @@ describe("ReactiveObject", () => {
                 .skip(1)
                 .subscribe(event => {
                     events.push(event);
-                }, err => done(err));
+                }, err => { throw err });
 
             var other = new MyOtherObject();
             var child1 = new MyOtherObject();
@@ -687,7 +659,6 @@ describe("ReactiveObject", () => {
             expect(events[1]).to.be.null;
             expect(events[2]).to.equal("great!");
             expect(events[3]).to.be.null;
-            done();
         });
     });
 
@@ -702,10 +673,9 @@ describe("ReactiveObject", () => {
         it("should observe property values for the given property name", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
-            obj.whenAnyValue<string>("prop").skip(1).subscribe(value => {
+            obj.whenAnyValue<string>("prop").skip(1).first().subscribe(value => {
                 expect(value).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.set("prop", "value");
         });
@@ -713,21 +683,19 @@ describe("ReactiveObject", () => {
         it("should resolve immediately with the current property value", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
             
-            obj.whenAnyValue<string>("prop").subscribe(value => {
+            obj.whenAnyValue<string>("prop").first().subscribe(value => {
                 expect(value).to.equal(null);
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
         });
 
         it("should observe multiple property values for the given property names", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
 
-            obj.whenAnyValue<string, string>("prop", "prop2").skip(2).subscribe(values => {
+            obj.whenAnyValue<string, string>("prop", "prop2").skip(2).first().subscribe(values => {
                 expect(values.length).to.equal(2);
                 expect(values[0]).to.equal("value");
                 expect(values[1]).to.equal("value2");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.set("prop", "value");
             obj.set("prop2", "value2");
@@ -744,10 +712,9 @@ describe("ReactiveObject", () => {
             child2.set("child3", child3);
             child3.set("child4", child4);
 
-            obj.whenAnyValue("child.child2.child3.child4.prop").skip(1).subscribe(value => {
+            obj.whenAnyValue("child.child2.child3.child4.prop").skip(1).first().subscribe(value => {
                 expect(value).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.get("child").get("child2").get("child3").get("child4").set("prop", "value");
         });
@@ -770,10 +737,9 @@ describe("ReactiveObject", () => {
             newChild3.set("child4", newChild4);
             newChild4.set("prop", "value");
 
-            obj.whenAnyValue("child.child2.child3.child4.prop").skip(1).subscribe(value => {
+            obj.whenAnyValue("child.child2.child3.child4.prop").skip(1).first().subscribe(value => {
                 expect(value).to.equal("value");
-                done();
-            }, err => done(err));
+            }, err => done(err), () => done());
 
             obj.get("child").set("child2", newChild2);
         });
