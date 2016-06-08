@@ -48,36 +48,44 @@ export class ReactiveObject {
         this._propertyChanged.next(this.createPropertyChangedEventArgs(propertyName, propValue));
     }
 
+    private static getSingleProperty<TObj, T>(
+        obj: TObj,
+        property: string): T | any {
+        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+            return obj[property];
+        } else {
+            return ReactiveObject.getReactiveProperty(obj, property);
+        }
+    }
+
+    private static getReactiveProperty<TObj, T>(
+        obj: TObj,
+        property: string): T | any {
+        return (<ReactiveObject><any>obj).__data[property] || null;
+    }
+
+    private static getDeepProperty<TObj, T>(obj: TObj, evaluated: { children: string[], property: string }): T | any {
+        var firstProp = evaluated.children[0];
+        var otherProperties = evaluated.property.substring(firstProp.length + 1);
+        var firstVal = ReactiveObject.get(obj, firstProp);
+        if (typeof firstVal !== "undefined") {
+            if (firstVal !== null) {
+                return ReactiveObject.get<TObj, T>(firstVal, otherProperties);
+            }
+            else {
+                return null;
+            }
+        } else {
+            return undefined;
+        }
+    }
+
     private static get<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T)): T | any {
         var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
         if (evaluated.children.length === 1) {
-            if (obj instanceof ReactiveObject) {
-                return (<ReactiveObject><any>obj).__data[evaluated.property] || null;
-            } else {
-                return obj[evaluated.property];
-            }
+            return ReactiveObject.getSingleProperty(obj, evaluated.property);
         } else {
-            var firstProp = evaluated.children[0];
-            var otherProperties = evaluated.property.substring(firstProp.length + 1);
-            var firstVal = ReactiveObject.get(obj, firstProp);
-            if (typeof firstVal !== "undefined") {
-                if (firstVal !== null) {
-                    if (typeof firstVal.get === "function") {
-                        return firstVal.get(otherProperties);
-                    } else {
-                        var current = firstVal;
-                        for (var i = 1; i < evaluated.children.length; i++) {
-                            current = current[evaluated.children[i]];
-                        }
-                        return current;
-                    }
-                }
-                else {
-                    return null;
-                }
-            } else {
-                return undefined;
-            }
+            return ReactiveObject.getDeepProperty(obj, evaluated);
         }
     }
 
@@ -86,40 +94,63 @@ export class ReactiveObject {
      * @param property The name of the property whose value should be retrieved. 
      */
     public get<T>(property: string | ((vm: this) => T)): T | any {
-        return ReactiveObject.get(this, property);
+        var evaluated = ReactiveObject.evaluateLambdaOrString(this, property);
+        if (evaluated.children.length === 1) {
+            return ReactiveObject.getReactiveProperty(this, evaluated.property);
+        } else {
+            return ReactiveObject.getDeepProperty(this, evaluated);
+        }
+    }
+
+    private static setSingleProperty<TObj, T>(obj: TObj, property: string, value: T) {
+        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+            obj[property] = value;
+        }
+        else {
+            ReactiveObject.setReactiveProperty(<ReactiveObject><any>obj, property, value);
+        }
+    }
+
+    private static setReactiveProperty(obj: ReactiveObject, property: string, value: any) {
+        var rObj: ReactiveObject = <any>obj;
+        var oldValue = rObj.__data[property];
+        if (value !== oldValue) {
+            rObj.__data[property] = value;
+            rObj.emitPropertyChanged(property, value);
+        }
+    }
+
+    private static setDeepProperty<TObj, T>(obj: TObj, evaluated: { children: string[], property: string }, value: T) {
+        var firstProp = evaluated.children[0];
+        var otherProperties = evaluated.property.substring(firstProp.length + 1);
+        var firstVal = ReactiveObject.get(obj, firstProp);
+        if (firstVal != null) {
+            ReactiveObject.set(firstVal, otherProperties, value);
+        } else {
+            throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
+        }
+    }
+
+    private static setCore<TObj, T>(
+        obj: TObj,
+        property: string | ((vm: TObj) => T),
+        value: T,
+        setSingle: (evaluated: { children: string[], property: string }) => void,
+        setDeep: (evaluated: { children: string[], property: string }) => void) {
+        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
+        if (evaluated.children.length === 1) {
+            setSingle(evaluated);
+        } else {
+            setDeep(evaluated);
+        }
     }
 
     private static set<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T), value: T) {
-        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
-        var oldValue: T = ReactiveObject.get(obj, property);
-        if (oldValue !== value) {
-            if (evaluated.children.length === 1) {
-                if (obj instanceof ReactiveObject) {
-                    var rObj: ReactiveObject = <any>obj;
-                    rObj.__data[evaluated.property] = value;
-                    rObj.emitPropertyChanged(evaluated.property, value);
-                } else {
-                    obj[evaluated.property] = value;
-                }
-            } else {
-                var firstProp = evaluated.children[0];
-                var otherProperties = evaluated.property.substring(firstProp.length + 1);
-                var firstVal = ReactiveObject.get(obj, firstProp);
-                if (firstVal != null) {
-                    if (typeof firstVal.set === "function") {
-                        firstVal.set(otherProperties, value);
-                    } else {
-                        var current = firstVal;
-                        for (var i = 1; i < evaluated.children.length - 1; i++) {
-                            current = current[evaluated.children[i]];
-                        }
-                        current[evaluated.children[evaluated.children.length - 1]] = value;
-                    }
-                } else {
-                    throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
-                }
-            }
-        }
+        ReactiveObject.setCore(obj, property, value, (evaluated) => {
+            ReactiveObject.setSingleProperty(obj, evaluated.property, value);
+        }, (evaluated) => {
+            ReactiveObject.setDeepProperty(obj, evaluated, value)
+        });
     }
 
     /**
@@ -128,7 +159,11 @@ export class ReactiveObject {
      * @param value The value to give the property.
      */
     public set<T>(property: string | ((vm: this) => T), value: T): void {
-        ReactiveObject.set(this, property, value);
+        ReactiveObject.setCore(this, property, value, (evaluated) => {
+            ReactiveObject.setReactiveProperty(this, evaluated.property, value);
+        }, (evaluated) => {
+            ReactiveObject.setDeepProperty(this, evaluated, value)
+        });
     }
 
     /**

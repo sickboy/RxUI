@@ -114,40 +114,40 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var propValue = newPropertyValue != null ? newPropertyValue : this.get(propertyName);
 	        this._propertyChanged.next(this.createPropertyChangedEventArgs(propertyName, propValue));
 	    };
-	    ReactiveObject.get = function (obj, property) {
-	        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
-	        if (evaluated.children.length === 1) {
-	            if (obj instanceof ReactiveObject) {
-	                return obj.__data[evaluated.property] || null;
+	    ReactiveObject.getSingleProperty = function (obj, property) {
+	        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+	            return obj[property];
+	        }
+	        else {
+	            return ReactiveObject.getReactiveProperty(obj, property);
+	        }
+	    };
+	    ReactiveObject.getReactiveProperty = function (obj, property) {
+	        return obj.__data[property] || null;
+	    };
+	    ReactiveObject.getDeepProperty = function (obj, evaluated) {
+	        var firstProp = evaluated.children[0];
+	        var otherProperties = evaluated.property.substring(firstProp.length + 1);
+	        var firstVal = ReactiveObject.get(obj, firstProp);
+	        if (typeof firstVal !== "undefined") {
+	            if (firstVal !== null) {
+	                return ReactiveObject.get(firstVal, otherProperties);
 	            }
 	            else {
-	                return obj[evaluated.property];
+	                return null;
 	            }
 	        }
 	        else {
-	            var firstProp = evaluated.children[0];
-	            var otherProperties = evaluated.property.substring(firstProp.length + 1);
-	            var firstVal = ReactiveObject.get(obj, firstProp);
-	            if (typeof firstVal !== "undefined") {
-	                if (firstVal !== null) {
-	                    if (typeof firstVal.get === "function") {
-	                        return firstVal.get(otherProperties);
-	                    }
-	                    else {
-	                        var current = firstVal;
-	                        for (var i = 1; i < evaluated.children.length; i++) {
-	                            current = current[evaluated.children[i]];
-	                        }
-	                        return current;
-	                    }
-	                }
-	                else {
-	                    return null;
-	                }
-	            }
-	            else {
-	                return undefined;
-	            }
+	            return undefined;
+	        }
+	    };
+	    ReactiveObject.get = function (obj, property) {
+	        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
+	        if (evaluated.children.length === 1) {
+	            return ReactiveObject.getSingleProperty(obj, evaluated.property);
+	        }
+	        else {
+	            return ReactiveObject.getDeepProperty(obj, evaluated);
 	        }
 	    };
 	    /**
@@ -155,43 +155,56 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param property The name of the property whose value should be retrieved.
 	     */
 	    ReactiveObject.prototype.get = function (property) {
-	        return ReactiveObject.get(this, property);
+	        var evaluated = ReactiveObject.evaluateLambdaOrString(this, property);
+	        if (evaluated.children.length === 1) {
+	            return ReactiveObject.getReactiveProperty(this, evaluated.property);
+	        }
+	        else {
+	            return ReactiveObject.getDeepProperty(this, evaluated);
+	        }
+	    };
+	    ReactiveObject.setSingleProperty = function (obj, property, value) {
+	        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+	            obj[property] = value;
+	        }
+	        else {
+	            ReactiveObject.setReactiveProperty(obj, property, value);
+	        }
+	    };
+	    ReactiveObject.setReactiveProperty = function (obj, property, value) {
+	        var rObj = obj;
+	        var oldValue = rObj.__data[property];
+	        if (value !== oldValue) {
+	            rObj.__data[property] = value;
+	            rObj.emitPropertyChanged(property, value);
+	        }
+	    };
+	    ReactiveObject.setDeepProperty = function (obj, evaluated, value) {
+	        var firstProp = evaluated.children[0];
+	        var otherProperties = evaluated.property.substring(firstProp.length + 1);
+	        var firstVal = ReactiveObject.get(obj, firstProp);
+	        if (firstVal != null) {
+	            ReactiveObject.set(firstVal, otherProperties, value);
+	        }
+	        else {
+	            throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
+	        }
+	    };
+	    ReactiveObject.setCore = function (obj, property, value, setSingle, setDeep) {
+	        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
+	        if (evaluated.children.length === 1) {
+	            setSingle(evaluated);
+	        }
+	        else {
+	            setDeep(evaluated);
+	        }
 	    };
 	    ReactiveObject.set = function (obj, property, value) {
-	        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
-	        var oldValue = ReactiveObject.get(obj, property);
-	        if (oldValue !== value) {
-	            if (evaluated.children.length === 1) {
-	                if (obj instanceof ReactiveObject) {
-	                    var rObj = obj;
-	                    rObj.__data[evaluated.property] = value;
-	                    rObj.emitPropertyChanged(evaluated.property, value);
-	                }
-	                else {
-	                    obj[evaluated.property] = value;
-	                }
-	            }
-	            else {
-	                var firstProp = evaluated.children[0];
-	                var otherProperties = evaluated.property.substring(firstProp.length + 1);
-	                var firstVal = ReactiveObject.get(obj, firstProp);
-	                if (firstVal != null) {
-	                    if (typeof firstVal.set === "function") {
-	                        firstVal.set(otherProperties, value);
-	                    }
-	                    else {
-	                        var current = firstVal;
-	                        for (var i = 1; i < evaluated.children.length - 1; i++) {
-	                            current = current[evaluated.children[i]];
-	                        }
-	                        current[evaluated.children[evaluated.children.length - 1]] = value;
-	                    }
-	                }
-	                else {
-	                    throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
-	                }
-	            }
-	        }
+	        ReactiveObject.setCore(obj, property, value, function (evaluated) {
+	            ReactiveObject.setSingleProperty(obj, evaluated.property, value);
+	        }, function (evaluated) {
+	            ReactiveObject.setDeepProperty(obj, evaluated, value);
+	        });
 	    };
 	    /**
 	     * Sets the value of the given property on this object and emits the "propertyChanged" event.
@@ -199,7 +212,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * @param value The value to give the property.
 	     */
 	    ReactiveObject.prototype.set = function (property, value) {
-	        ReactiveObject.set(this, property, value);
+	        var _this = this;
+	        ReactiveObject.setCore(this, property, value, function (evaluated) {
+	            ReactiveObject.setReactiveProperty(_this, evaluated.property, value);
+	        }, function (evaluated) {
+	            ReactiveObject.setDeepProperty(_this, evaluated, value);
+	        });
 	    };
 	    /**
 	     * Builds a proxy object that adds accessed property names to the given array if proxies are supported.

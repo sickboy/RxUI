@@ -97,6 +97,42 @@ describe("ReactiveObject", () => {
         });
     });
 
+    describe(".set()", () => {
+        it("should call the defined setter on the object if it exists", () => {
+            var hit = false;
+            class TestClass extends ReactiveObject {
+                public get prop() {
+                    return this.get("prop");
+                }
+
+                public set prop(val: string) {
+                    hit = true;
+                    this.set("prop", val);
+                }
+            }
+            var obj = new TestClass();
+            (<any>ReactiveObject).set(obj, "prop", "Value");
+            expect(hit).to.be.true;
+            expect(obj.prop).to.equal("Value");
+        });
+    });
+
+    describe(".get()", () => {
+        it("should call the defined getter on the object if it exists", () => {
+            var hit = false;
+            class TestClass extends ReactiveObject {
+                public get prop() {
+                    hit = true;
+                    return "customValue";
+                }
+            }
+            var obj = new TestClass();
+            var ret = (<any>ReactiveObject).get(obj, "prop");
+            expect(hit).to.be.true;
+            expect(ret).to.equal("customValue");
+        });
+    });
+
     describe("#emitPropertyChanged()", () => {
         it("should emit new PropertyChangedEventArgs when called", (done) => {
             class MyReactiveObj extends ReactiveObject {
@@ -359,7 +395,7 @@ describe("ReactiveObject", () => {
                 .first()
                 .subscribe(events => {
                     expect(events.length).to.equal(3);
-                    
+
                     var firstEvents = events[0];
                     expect(firstEvents.length).to.equal(3);
                     expect(firstEvents[0].propertyName).to.equal("prop1");
@@ -373,7 +409,7 @@ describe("ReactiveObject", () => {
                     expect(firstEvents[0].sender).to.equal(obj);
                     expect(firstEvents[1].sender).to.equal(obj);
                     expect(firstEvents[2].sender).to.equal(obj);
-                    
+
                     var secondEvents = events[1];
                     expect(secondEvents.length).to.equal(3);
                     expect(secondEvents[0].propertyName).to.equal("prop1");
@@ -387,7 +423,7 @@ describe("ReactiveObject", () => {
                     expect(secondEvents[0].sender).to.equal(obj);
                     expect(secondEvents[1].sender).to.equal(obj);
                     expect(secondEvents[2].sender).to.equal(obj);
-                    
+
                     var finalEvents = events[2];
                     expect(finalEvents.length).to.equal(3);
                     expect(finalEvents[0].propertyName).to.equal("prop1");
@@ -682,7 +718,7 @@ describe("ReactiveObject", () => {
 
         it("should resolve immediately with the current property value", (done) => {
             var obj: ReactiveObject = new ReactiveObject();
-            
+
             obj.whenAnyValue<string>("prop").first().subscribe(value => {
                 expect(value).to.equal(null);
             }, err => done(err), () => done());
@@ -728,11 +764,11 @@ describe("ReactiveObject", () => {
             child.set("child2", child2);
             child2.set("child3", child3);
             child3.set("child4", child4);
-            
+
             var newChild2: ReactiveObject = new ReactiveObject();
             var newChild3: ReactiveObject = new ReactiveObject();
             var newChild4: ReactiveObject = new ReactiveObject();
-            
+
             newChild2.set("child3", newChild3);
             newChild3.set("child4", newChild4);
             newChild4.set("prop", "value");
