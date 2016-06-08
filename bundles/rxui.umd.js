@@ -701,7 +701,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        .filter(function (o) { return o.canExecute && o.command != null; })
 	        .distinctUntilChanged()
 	        .flatMap(function (o) {
-	        return o.command.executeAsync(o.observedValue);
+	        return o.command.execute(o.observedValue);
 	    });
 	    return results;
 	}
@@ -845,11 +845,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * Executes this command asynchronously.
 	     * Note that this method does not check whether the command is currently executable.
 	     */
-	    ReactiveCommand.prototype.executeAsync = function (arg) {
+	    ReactiveCommand.prototype.execute = function (arg) {
 	        var _this = this;
 	        if (arg === void 0) { arg = null; }
-	        // this.executing.next(true);
-	        // var o = null;
 	        try {
 	            return Rx_1.Observable.defer(function () {
 	                _this._synchronizedExcecutionInfo.next(ExecutionInfo.createBegin());
@@ -869,38 +867,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	            this._exceptions.next(ex);
 	            return Rx_1.Observable.throw(ex);
 	        }
-	        // var observable = Observable.create(sub => {
-	        //     try {
-	        //         if(o == null) {
-	        //             o = this.task(arg);
-	        //         }
-	        //         var subscription = o.subscribe(sub);
-	        //         return () => {
-	        //             subscription.unsubscribe();
-	        //         };
-	        //     } catch (error) {
-	        //         sub.error(error);
-	        //         sub.complete();
-	        //     }
-	        // });
-	        // observable.subscribe(result => {
-	        //     this.subject.next(result);
-	        // }, err => {
-	        //     this.subject.error(err);
-	        //     this.executing.next(false);
-	        // }, () => {
-	        //     this.executing.next(false);
-	        // });
-	        // return observable.observeOn(this.scheduler);
 	    };
 	    /**
 	     * Executes this command asynchronously if the latest observed value from canExecute is true.
 	     */
-	    ReactiveCommand.prototype.invokeAsync = function (arg) {
+	    ReactiveCommand.prototype.invoke = function (arg) {
 	        var _this = this;
 	        if (arg === void 0) { arg = null; }
 	        return this.canExecuteNow().filter(function (canExecute) { return canExecute; }).flatMap(function (c) {
-	            return _this.executeAsync(arg);
+	            return _this.execute(arg);
 	        });
 	    };
 	    /**

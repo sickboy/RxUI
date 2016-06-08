@@ -13,7 +13,7 @@ describe("ReactiveCommand", () => {
                 return Promise.resolve(true);
             });
 
-            command.executeAsync().take(1).subscribe(result => {
+            command.execute().take(1).subscribe(result => {
                 expect(result).to.be.true;
             }, err => done(err), () => done());
         });
@@ -21,7 +21,7 @@ describe("ReactiveCommand", () => {
             var command: ReactiveCommand<any, void> = ReactiveCommand.createFromTask((a) => {
                 return Promise.reject("Error");
             });
-            command.executeAsync().take(1).subscribe(null, err => {
+            command.execute().take(1).subscribe(null, err => {
                 expect(err).to.equal("Error");
                 done();
             });
@@ -32,7 +32,7 @@ describe("ReactiveCommand", () => {
                 throw error;
             };
             var command: ReactiveCommand<any, void> = ReactiveCommand.createFromTask<any, void>(task);
-            command.executeAsync().take(1).subscribe(null, err => {
+            command.execute().take(1).subscribe(null, err => {
                 expect(err).to.equal(error);
                 done();
             });
@@ -44,7 +44,7 @@ describe("ReactiveCommand", () => {
                 return "value";
             });
 
-            command.executeAsync().take(1).subscribe(result => {
+            command.execute().take(1).subscribe(result => {
                 expect(result).to.equal("value");
                 done();
             }, err => done(err));
@@ -80,7 +80,7 @@ describe("ReactiveCommand", () => {
                 expect(can[2]).to.be.true;
             }, err => done(err), () => done());
 
-            command.executeAsync(null).subscribe();
+            command.execute(null).subscribe();
         });
         it("should not cause the command to be executed twice when the condition changes during execution", (done) => {
             class MyInnerClass extends ReactiveObject {
@@ -131,10 +131,10 @@ describe("ReactiveCommand", () => {
             var command: ReactiveCommand<any, any> = ReactiveCommand.createFromObservable((a) => {
                 count++;
                 obj.value = new MyInnerClass();
-                return innerCommand.executeAsync();
+                return innerCommand.execute();
             }, canExecute);
             obj.value.prop = "Custom";
-            command.executeAsync().subscribe(() => {
+            command.execute().subscribe(() => {
                 expect(count).to.equal(1);
             }, err => done(err), () => done());
         });
@@ -159,7 +159,7 @@ describe("ReactiveCommand", () => {
                 expect(executing[2]).to.be.false;
             }, err => done(err), () => done());
 
-            command.executeAsync(null).subscribe();
+            command.execute(null).subscribe();
         });
     });
 
@@ -175,7 +175,7 @@ describe("ReactiveCommand", () => {
                 expect(result).to.be.true;
             };
 
-            var sub = command.executeAsync().subscribe(work);
+            var sub = command.execute().subscribe(work);
 
             // Expect three actions to be scheduled.
             // One for the results of the execution, one for the results of the command, and one for the exceptions
@@ -186,7 +186,7 @@ describe("ReactiveCommand", () => {
         it("should pipe errors from the task's observable to the subscribers", (done) => {
             var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable<any, boolean>(a => Observable.create(sub => sub.error("error")));
 
-            command.executeAsync().bufferCount(1).take(1).subscribe(null, err => {
+            command.execute().bufferCount(1).take(1).subscribe(null, err => {
                 expect(err).to.not.be.null;
                 expect(err).to.equal("error");
                 done();
@@ -199,7 +199,7 @@ describe("ReactiveCommand", () => {
             };
             var command: ReactiveCommand<any, boolean> = ReactiveCommand.createFromObservable<any, boolean>(task);
 
-            command.executeAsync().bufferCount(1).take(1).subscribe(null, err => {
+            command.execute().bufferCount(1).take(1).subscribe(null, err => {
                 expect(err).to.equal(error);
                 done();
             })
@@ -210,7 +210,7 @@ describe("ReactiveCommand", () => {
                 return ++num;
             });
 
-            var observable = command.executeAsync();
+            var observable = command.execute();
             var result;
             var first = observable.subscribe(n => {
                 result = n;
@@ -233,7 +233,7 @@ describe("ReactiveCommand", () => {
             var command: ReactiveCommand<MyClass, MyClass> = ReactiveCommand.create((a: MyClass) => a);
             var arg = new MyClass();
             arg.num = 42;
-            command.executeAsync(arg).first().subscribe(ret => {
+            command.execute(arg).first().subscribe(ret => {
                 expect(ret).to.equal(arg);
             }, err => done(err), () => done());
         });
@@ -245,7 +245,7 @@ describe("ReactiveCommand", () => {
                 return 42;
             }, Observable.of(false));
             var hit: boolean = false;
-            command.invokeAsync().subscribe(num => {
+            command.invoke().subscribe(num => {
                 hit = true;
             }, err => done(err), () => {
                 expect(hit).to.be.false;
@@ -257,7 +257,7 @@ describe("ReactiveCommand", () => {
                 return 42;
             }, Observable.of(true));
             var hit: boolean = false;
-            command.invokeAsync().subscribe(num => {
+            command.invoke().subscribe(num => {
                 hit = true;
             }, err => done(err), () => {
                 expect(hit).to.be.true;
@@ -306,7 +306,7 @@ describe("ReactiveCommand", () => {
             return true;
         }, obj.canAddNewTodo());
 
-        command.executeAsync().first().subscribe(result => {
+        command.execute().first().subscribe(result => {
             expect(result).to.be.true;
         }, err => done(err), () => done());
     });
