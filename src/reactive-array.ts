@@ -50,6 +50,23 @@ export class ReactiveArray<T> extends ReactiveObject {
         this._array[index] = value;
     }
 
+    public unshift(...values: T[]): void {
+        this.trackPropertyChanges("length", () => {
+            this._array.unshift(...values);
+            this.emitArrayChanges(0, values, 0, [])
+        });
+    }
+
+    public shift(): T {
+        return this.trackPropertyChanges("length", () => {
+            var removed = this._array.shift();
+            if (typeof removed !== "undefined") {
+                this.emitArrayChanges(0, [], 0, [removed]);
+            }
+            return removed;
+        });
+    }
+
     public push(...values: T[]): void {
         this.trackPropertyChanges("length", () => {
             this._array.push(...values);

@@ -24,6 +24,36 @@ describe("ReactiveArray", () => {
             expect(arr.getItem(0)).to.equal("New");
         });
     });
+    describe("#unshift()", () => {
+        it("should add the given value to the beginning of the array", () => {
+            var arr = new ReactiveArray<string>();
+            arr.unshift("Hello");
+            arr.unshift("World");
+            expect(arr.length).to.equal(2);
+            expect(arr.getItem(0)).to.equal("World");
+            expect(arr.getItem(1)).to.equal("Hello");
+        });
+        it("should add multple arguments as multiple values", () => {
+            var arr = new ReactiveArray<string>();
+            arr.unshift("Hello", "World");
+            expect(arr.length).to.equal(2);
+            expect(arr.getItem(0)).to.equal("Hello");
+            expect(arr.getItem(1)).to.equal("World");
+        });
+    });
+    describe("#shift()", () => {
+        it("should remove the first element from the array", () => {
+            var arr = ReactiveArray.of("Hello", "World");
+            arr.shift();
+            expect(arr.length).to.equal(1);
+            expect(arr.getItem(0)).to.equal("World");
+        });
+        it("should return the removed value", () => {
+            var arr = ReactiveArray.of("Hello", "World");
+            var ret = arr.shift();
+            expect(ret).to.equal("Hello");
+        });
+    });
     describe("#push()", () => {
         it("should add the given value to the end of the array", () => {
             var arr = new ReactiveArray<string>();
@@ -187,11 +217,27 @@ describe("ReactiveArray", () => {
             expect(lengthEvents.length).to.equal(1);
             expect(lengthEvents[0]).to.equal(3);
         });
+        it("should resolve after #unshift() has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var lengthEvents = [];
+            arr.whenAnyValue("length").skip(1).subscribe(l => lengthEvents.push(l));
+            arr.unshift("New", "Values");
+            expect(lengthEvents.length).to.equal(1);
+            expect(lengthEvents[0]).to.equal(3);
+        });
         it("should resolve after #pop() has been called", () => {
             var arr = ReactiveArray.of("Value");
             var lengthEvents = [];
             arr.whenAnyValue("length").skip(1).subscribe(l => lengthEvents.push(l));
             arr.pop();
+            expect(lengthEvents.length).to.equal(1);
+            expect(lengthEvents[0]).to.equal(0);
+        });
+        it("should resolve after #shift() has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var lengthEvents = [];
+            arr.whenAnyValue("length").skip(1).subscribe(l => lengthEvents.push(l));
+            arr.shift();
             expect(lengthEvents.length).to.equal(1);
             expect(lengthEvents[0]).to.equal(0);
         });
@@ -212,6 +258,17 @@ describe("ReactiveArray", () => {
             arr.push("New", "Values");
             expect(addedEvents.length).to.equal(1);
             expect(addedEvents[0].addedItemsIndex).to.equal(1);
+            expect(addedEvents[0].addedItems.length).to.equal(2);
+            expect(addedEvents[0].addedItems[0]).to.equal("New");
+            expect(addedEvents[0].addedItems[1]).to.equal("Values");
+        });
+        it("should resolve after #unshift() has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var addedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.itemsAdded.subscribe(e => addedEvents.push(e));
+            arr.unshift("New", "Values");
+            expect(addedEvents.length).to.equal(1);
+            expect(addedEvents[0].addedItemsIndex).to.equal(0);
             expect(addedEvents[0].addedItems.length).to.equal(2);
             expect(addedEvents[0].addedItems[0]).to.equal("New");
             expect(addedEvents[0].addedItems[1]).to.equal("Values");
@@ -239,6 +296,16 @@ describe("ReactiveArray", () => {
             expect(removedEvents[0].removedItems.length).to.equal(1);
             expect(removedEvents[0].removedItems[0]).to.equal("Value");
         });
+        it("should resolve after #shift() has been called on a non empty array", () => {
+            var arr = ReactiveArray.of("Value");
+            var removedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.itemsRemoved.subscribe(e => removedEvents.push(e));
+            arr.shift();
+            expect(removedEvents.length).to.equal(1);
+            expect(removedEvents[0].removedItemsIndex).to.equal(0);
+            expect(removedEvents[0].removedItems.length).to.equal(1);
+            expect(removedEvents[0].removedItems[0]).to.equal("Value");
+        });
         it("should not resolve after #pop() has been called on an empty array", () => {
             var arr = new ReactiveArray<string>();
             var removedEvents: CollectionChangedEventArgs<string>[] = [];
@@ -248,13 +315,24 @@ describe("ReactiveArray", () => {
         });
     });
     describe("#changed", () => {
-        it("should resolve after #push has been called", () => {
+        it("should resolve after #push() has been called", () => {
             var arr = ReactiveArray.of("Value");
             var changedEvents: CollectionChangedEventArgs<string>[] = [];
             arr.changed.subscribe(e => changedEvents.push(e));
             arr.push("New", "Values");
             expect(changedEvents.length).to.equal(1);
             expect(changedEvents[0].addedItemsIndex).to.equal(1);
+            expect(changedEvents[0].addedItems.length).to.equal(2);
+            expect(changedEvents[0].addedItems[0]).to.equal("New");
+            expect(changedEvents[0].addedItems[1]).to.equal("Values");
+        });
+        it("should resolve after #unshift() has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var changedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.changed.subscribe(e => changedEvents.push(e));
+            arr.unshift("New", "Values");
+            expect(changedEvents.length).to.equal(1);
+            expect(changedEvents[0].addedItemsIndex).to.equal(0);
             expect(changedEvents[0].addedItems.length).to.equal(2);
             expect(changedEvents[0].addedItems[0]).to.equal("New");
             expect(changedEvents[0].addedItems[1]).to.equal("Values");
@@ -292,6 +370,16 @@ describe("ReactiveArray", () => {
             arr.changed.subscribe(e => changedEvents.push(e));
             arr.splice(0, 0);
             expect(changedEvents.length).to.equal(0);
+        });
+        it("should resolve after items are removed with #shift()", () => {
+            var arr = ReactiveArray.of("Value");
+            var changedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.changed.subscribe(e => changedEvents.push(e));
+            arr.shift();
+            expect(changedEvents.length).to.equal(1);
+            expect(changedEvents[0].removedItemsIndex).to.equal(0);
+            expect(changedEvents[0].removedItems.length).to.equal(1);
+            expect(changedEvents[0].removedItems[0]).to.equal("Value");
         });
     });
     describe(".of()", () => {
