@@ -63,6 +63,10 @@ export class ReactiveArray<T> extends ReactiveObject {
         return this._array.indexOf(value, fromIndex);
     }
 
+    public lastIndexOf(value: T, fromIndex: number = this.length - 1): number {
+        return this._array.lastIndexOf(value, fromIndex);
+    }
+
     public forEach(callback: (value: T, index?: number, array?: ReactiveArray<T>) => void, thisArg?: any): void {
         var bound = callback;
         if (thisArg) {

@@ -130,6 +130,18 @@ describe("ReactiveArray", () => {
             expect(index).to.equal(-1);
         });
     });
+    describe("#lastIndexOf()", () => {
+        it("should return the index of the last item that was matched", () => {
+            var arr = ReactiveArray.of("Hello", "World", "Hello", "World");
+            var index = arr.lastIndexOf("World");
+            expect(index).to.equal(3);
+        });
+        it("should return -1 if the item wasn't found", () => {
+            var arr = ReactiveArray.of("Hello", "World", "Hello", "World");
+            var index = arr.lastIndexOf("Not Found");
+            expect(index).to.equal(-1);
+        });
+    });
     describe(".of()", () => {
         it("should create a ReactiveArray from the given values", () => {
             var arr = ReactiveArray.of("First", "Second", "Third", null);
