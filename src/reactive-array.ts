@@ -1,17 +1,45 @@
 import {ReactiveObject} from "./reactive-object";
+import {Observable} from "rxjs/Observable";
+import {Subject} from "rxjs/Subject";
+import {CollectionChangedEventArgs} from "./events/collection-changed-event-args";
+import "rxjs/add/operator/filter";
 
 export class ReactiveArray<T> extends ReactiveObject {
 
     private _array: T[];
-
+    private _changed: Subject<CollectionChangedEventArgs<T>>;
     constructor(arr?: T[] | ReactiveArray<T>) {
         super();
+        this._changed = new Subject<CollectionChangedEventArgs<T>>();
         var copied = arr ? arr.slice() : [];
         if (Array.isArray(copied)) {
             this._array = copied;
         } else {
             this._array = copied._array;
         }
+    }
+
+    private emitArrayChanges(addStartIndex: number, addedItems: T[], deleteStartIndex: number, deletedItems: T[]): void {
+        if (addedItems.length > 0 || deletedItems.length > 0) {
+            var e = new CollectionChangedEventArgs<T>(this);
+            e.addedItems = addedItems.slice();
+            e.addedItemsIndex = addStartIndex;
+            e.removedItems = deletedItems.slice();
+            e.removedItemsIndex = deleteStartIndex;
+            this._changed.next(e);
+        }
+    }
+
+    public get changed(): Observable<CollectionChangedEventArgs<T>> {
+        return this._changed.asObservable();
+    }
+
+    public get itemsAdded(): Observable<CollectionChangedEventArgs<T>> {
+        return this.changed.filter(e => e.addedItems.length > 0);
+    }
+
+    public get itemsRemoved(): Observable<CollectionChangedEventArgs<T>> {
+        return this.changed.filter(e => e.removedItems.length > 0);
     }
 
     public getItem(index: number): T {
@@ -25,12 +53,17 @@ export class ReactiveArray<T> extends ReactiveObject {
     public push(...values: T[]): void {
         this.trackPropertyChanges("length", () => {
             this._array.push(...values);
+            this.emitArrayChanges(this._array.length - values.length, values, 0, []);
         });
     }
 
     public pop(): T {
         return this.trackPropertyChanges("length", () => {
-            return this._array.pop();
+            var removed = this._array.pop();
+            if (typeof removed !== "undefined") {
+                this.emitArrayChanges(0, [], this._array.length, [removed]);
+            }
+            return removed;
         });
     }
 
@@ -45,6 +78,7 @@ export class ReactiveArray<T> extends ReactiveObject {
     public splice(start: number, deleteCount: number, ...items: T[]): ReactiveArray<T> {
         return this.trackPropertyChanges("length", () => {
             var deleted = this._array.splice(start, deleteCount, ...items);
+            this.emitArrayChanges(start, items, start, deleted);
             return ReactiveArray.from(deleted);
         });
     }

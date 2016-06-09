@@ -1,5 +1,6 @@
 import {ReactiveObject} from "../src/reactive-object";
 import {ReactiveArray} from "../src/reactive-array";
+import {CollectionChangedEventArgs} from "../src/events/collection-changed-event-args";
 import {Observable, Subject, TestScheduler} from "rxjs/Rx";
 import {expect} from "chai";
 import {MyObject} from "./models/my-object";
@@ -183,6 +184,96 @@ describe("ReactiveArray", () => {
             arr.splice(0, 2);
             expect(lengthEvents.length).to.equal(1);
             expect(lengthEvents[0]).to.equal(1);
+        });
+    });
+    describe("#itemsAdded", () => {
+        it("should resolve after #push() has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var addedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.itemsAdded.subscribe(e => addedEvents.push(e));
+            arr.push("New", "Values");
+            expect(addedEvents.length).to.equal(1);
+            expect(addedEvents[0].addedItemsIndex).to.equal(1);
+            expect(addedEvents[0].addedItems.length).to.equal(2);
+            expect(addedEvents[0].addedItems[0]).to.equal("New");
+            expect(addedEvents[0].addedItems[1]).to.equal("Values");
+        });
+        it("should resolve after items are added with #splice()", () => {
+            var arr = ReactiveArray.of("Value");
+            var addedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.itemsAdded.subscribe(e => addedEvents.push(e));
+            arr.splice(0, 0, "New", "Values");
+            expect(addedEvents.length).to.equal(1);
+            expect(addedEvents[0].addedItemsIndex).to.equal(0);
+            expect(addedEvents[0].addedItems.length).to.equal(2);
+            expect(addedEvents[0].addedItems[0]).to.equal("New");
+            expect(addedEvents[0].addedItems[1]).to.equal("Values");
+        });
+    });
+    describe("#itemsRemoved", () => {
+        it("should resolve after #pop() has been called on a non empty array", () => {
+            var arr = ReactiveArray.of("Value");
+            var removedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.itemsRemoved.subscribe(e => removedEvents.push(e));
+            arr.pop();
+            expect(removedEvents.length).to.equal(1);
+            expect(removedEvents[0].removedItemsIndex).to.equal(0);
+            expect(removedEvents[0].removedItems.length).to.equal(1);
+            expect(removedEvents[0].removedItems[0]).to.equal("Value");
+        });
+        it("should not resolve after #pop() has been called on an empty array", () => {
+            var arr = new ReactiveArray<string>();
+            var removedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.itemsRemoved.subscribe(e => removedEvents.push(e));
+            arr.pop();
+            expect(removedEvents.length).to.equal(0);
+        });
+    });
+    describe("#changed", () => {
+        it("should resolve after #push has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var changedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.changed.subscribe(e => changedEvents.push(e));
+            arr.push("New", "Values");
+            expect(changedEvents.length).to.equal(1);
+            expect(changedEvents[0].addedItemsIndex).to.equal(1);
+            expect(changedEvents[0].addedItems.length).to.equal(2);
+            expect(changedEvents[0].addedItems[0]).to.equal("New");
+            expect(changedEvents[0].addedItems[1]).to.equal("Values");
+        });
+        it("should resolve after items are added or removed with #splice()", () => {
+            var arr = ReactiveArray.of("Value");
+            var events: CollectionChangedEventArgs<string>[] = [];
+            arr.itemsRemoved.subscribe(e => events.push(e));
+
+            // Try to remove 2 items, knowing that only one should be recorded as removed
+            // because there's only one item in the array. 
+            arr.splice(0, 2, "New", "Values");
+            expect(events.length).to.equal(1);
+            expect(events[0].addedItemsIndex).to.equal(0);
+            expect(events[0].addedItems.length).to.equal(2);
+            expect(events[0].addedItems[0]).to.equal("New");
+            expect(events[0].addedItems[1]).to.equal("Values");
+            expect(events[0].removedItemsIndex).to.equal(0);
+            expect(events[0].removedItems.length).to.equal(1);
+            expect(events[0].removedItems[0]).to.equal("Value");
+        });
+        it("should resolve after items are removed with #pop()", () => {
+            var arr = ReactiveArray.of("Value");
+            var changedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.changed.subscribe(e => changedEvents.push(e));
+            arr.pop();
+            expect(changedEvents.length).to.equal(1);
+            expect(changedEvents[0].removedItemsIndex).to.equal(0);
+            expect(changedEvents[0].removedItems.length).to.equal(1);
+            expect(changedEvents[0].removedItems[0]).to.equal("Value");
+        });
+        it("should not resolve if no items are added/removed", () => {
+            var arr = ReactiveArray.of("Value");
+            var changedEvents: CollectionChangedEventArgs<string>[] = [];
+            arr.changed.subscribe(e => changedEvents.push(e));
+            arr.splice(0, 0);
+            expect(changedEvents.length).to.equal(0);
         });
     });
     describe(".of()", () => {
