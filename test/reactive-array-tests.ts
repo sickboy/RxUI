@@ -344,6 +344,22 @@ describe("ReactiveArray", () => {
                 second.setItem(0, "More Stuff");
             }).to.throw();
         });
+        it("should be able to combine multiple transforms", () => {
+            var first = ReactiveArray.of("Hello", "World", null, "Greatness", "from", "Small", "Beginnings");
+            var second = first.derived
+                .filter(str => str != null)
+                .map(str => str.length)
+                .filter(l => l > 4)
+                .sort((a, b) => a - b)
+                .build();
+
+            expect(second.length).to.equal(5);
+            expect(second.getItem(0)).to.equal(5);
+            expect(second.getItem(1)).to.equal(5);
+            expect(second.getItem(2)).to.equal(5);
+            expect(second.getItem(3)).to.equal(9);
+            expect(second.getItem(4)).to.equal(10);
+        });
         describe("#filter()", () => {
             it("should produce a ReactiveArray that only contains items that match the predicate", () => {
                 var first = ReactiveArray.of("Hello", "World");
