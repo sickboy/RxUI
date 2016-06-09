@@ -118,6 +118,18 @@ describe("ReactiveArray", () => {
             expect(other.getItem(1)).to.equal("World1");
         });
     });
+    describe("#indexOf()", () => {
+        it("should return the index of the first item that was matched", () => {
+            var arr = ReactiveArray.of("Hello", "World", "Hello", "World");
+            var index = arr.indexOf("World");
+            expect(index).to.equal(1);
+        });
+        it("should return -1 if the item wasn't found", () => {
+            var arr = ReactiveArray.of("Hello", "World", "Hello", "World");
+            var index = arr.indexOf("Not Found");
+            expect(index).to.equal(-1);
+        });
+    });
     describe(".of()", () => {
         it("should create a ReactiveArray from the given values", () => {
             var arr = ReactiveArray.of("First", "Second", "Third", null);
