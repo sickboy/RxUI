@@ -475,6 +475,19 @@ describe("ReactiveArray", () => {
                 expect(second.length).to.equal(1);
                 expect(second.getItem(0)).to.equal("Hello");
             });
+            it("should only be called once for each item", () => {
+                var callCount = 0;
+                var first = ReactiveArray.of("Hello", "World");
+                var second = first.derived.filter(s => {
+                    callCount++;
+                    return s[0] === "H";
+                }).build();
+                expect(callCount).to.equal(2);
+                first.push("Honest");
+                expect(callCount).to.equal(3);
+                first.pop();
+                expect(callCount).to.equal(3);
+            });
         });
         describe("#map()", () => {
             it("should produce a ReactiveArray that contains items transformed with the given function", () => {
@@ -491,6 +504,19 @@ describe("ReactiveArray", () => {
                 expect(second.getItem(0)).to.equal(5);
                 expect(second.getItem(1)).to.equal(5);
                 expect(second.getItem(2)).to.equal(6);
+            });
+            it("should only be called once for each item", () => {
+                var callCount = 0;
+                var first = ReactiveArray.of("Hello", "World");
+                var second = first.derived.map(s => {
+                    callCount++;
+                    return s.length;
+                }).build();
+                expect(callCount).to.equal(2);
+                first.push("Honest");
+                expect(callCount).to.equal(3);
+                first.pop();
+                expect(callCount).to.equal(3);
             });
         });
         describe("#sort()", () => {

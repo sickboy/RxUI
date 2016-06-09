@@ -160,12 +160,20 @@ export class ReactiveArray<T> extends ReactiveObject {
 }
 
 class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
-    constructor(private parent: ReactiveArray<TIn>, private steps: BuilderTransform[]) {
-        super(DerivedReactiveArray._transform(parent.toArray(), steps));
+    private _trackedItems: TransformResult[];
+
+    constructor(private parent: ReactiveArray<TIn>, private eventSteps: BuilderItemTransform[], private arraySteps: BuilderArrayTransform[]) {
+        super();
+        this._trackedItems = [];
+        var e = new CollectionChangedEventArgs<TIn>(this);
+        e.addedItems = parent.toArray();
+        e.addedItemsIndex = 0;
+        e.movedItems = [];
+        e.removedItems = [];
+        e.removedItemsIndex = 0;
+        this._apply(e);
         parent.changed.subscribe(e => {
-            var arr = <ReactiveArray<TIn>>e.sender;
-            var transformed = DerivedReactiveArray._transform(arr.toArray(), steps);
-            super.splice.apply(this, [0, this.length, ...transformed]);
+            this._apply(e);
         });
     }
 
@@ -197,11 +205,35 @@ class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
         throw new Error("Derived arrays do not support modification. If you want support for two-way derived arrays, file an issue at https://github.com/KallynGowdy/RxUI/issues.");
     }
 
+    private _apply(event: CollectionChangedEventArgs<TIn>): void {
+        var addedItems: TransformResult[] = [];
+        for (var c = 0; c < event.addedItems.length; c++) {
+            var item = event.addedItems[c];
+            var result: TransformResult = {
+                keep: true,
+                value: item
+            };
+            for (var i = 0; i < this.eventSteps.length; i++) {
+                result = this.eventSteps[i].transform(result.value, c, event.addedItems);
+                if (result.keep === false) {
+                    break;
+                }
+            }
+            addedItems.push(result);
+        }
+        var currentArr = this._trackedItems;
+        currentArr.splice(event.addedItemsIndex, 0, ...addedItems);
+        currentArr.splice(event.removedItemsIndex, event.removedItems.length);
+        var finalArr = currentArr.filter(t => t.keep).map(t => t.value);
+        var final = DerivedReactiveArray._transformArray(finalArr, this.arraySteps);
+        super.splice.apply(this, [0, this.length, ...final]);
+    }
+
     /**
      * Runs the given transform result through each of the defined steps in this object
      * and returns the result.
      */
-    private static _transform(initial: any[], steps: BuilderTransform[]): any[] {
+    private static _transformArray(initial: any[], steps: BuilderArrayTransform[]): any[] {
         var current = initial;
         for (var i = 0; i < steps.length; i++) {
             current = steps[i].transform(current);
@@ -210,28 +242,50 @@ class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
     }
 }
 
-interface BuilderTransform {
-    transform: (current: any[]) => any[];
+interface TransformResult {
+    value: any;
+    keep: boolean;
 }
 
-class FilterTransform<T> implements BuilderTransform {
+/**
+ * Transforms that run on individual items in the array.
+ */
+interface BuilderItemTransform {
+    transform: (value: any, index: number, arry: any[]) => TransformResult;
+}
+
+/**
+ * Transforms that run on the entire compiled array.
+ */
+interface BuilderArrayTransform {
+    transform: (arr: any[]) => any[];
+}
+
+class FilterTransform<T> implements BuilderItemTransform {
     constructor(private predicate: (value: T, index: number, arr: T[]) => boolean) {
     }
 
-    transform(current: any[]): any[] {
-        return current.filter(this.predicate);
+    transform(value: any, index: number, arr: any[]): TransformResult {
+        return {
+            value: value,
+            keep: this.predicate(value, index, arr)
+        };
     }
 }
 
-class MapTransform<TIn, TOut> implements BuilderTransform {
+class MapTransform<TIn, TOut> implements BuilderItemTransform {
     constructor(private map: (value: TIn, index: number, arr: TIn[]) => TOut) {
     }
 
-    transform(current: any[]): any[] {
-        return current.map(this.map);
+    transform(value: any, index: number, arr: any[]): TransformResult {
+        return {
+            value: this.map(value, index, arr),
+            keep: true
+        };
     }
 }
-class SortTransform<T> implements BuilderTransform {
+
+class SortTransform<T> implements BuilderArrayTransform {
     constructor(private compareFunction: (first: T, second: T) => number) {
     }
 
@@ -245,30 +299,37 @@ class SortTransform<T> implements BuilderTransform {
  */
 export class DerivedReactiveArrayBuilder<T> {
     private parent: ReactiveArray<T>;
-    private steps: BuilderTransform[];
+    private eventSteps: BuilderItemTransform[];
+    private arraySteps: BuilderArrayTransform[];
     constructor(parent: ReactiveArray<T>) {
         this.parent = parent;
-        this.steps = [];
+        this.eventSteps = [];
+        this.arraySteps = [];
     }
 
-    private add<T>(transform: BuilderTransform): DerivedReactiveArrayBuilder<T> {
-        this.steps.push(transform);
+    private addEvent<T>(transform: BuilderItemTransform): DerivedReactiveArrayBuilder<T> {
+        this.eventSteps.push(transform);
+        return <DerivedReactiveArrayBuilder<T>><any>this;
+    }
+
+    private addArray<T>(transform: BuilderArrayTransform): DerivedReactiveArrayBuilder<T> {
+        this.arraySteps.push(transform);
         return <DerivedReactiveArrayBuilder<T>><any>this;
     }
 
     public filter(predicate: (value: T, index: number, arr: T[]) => boolean): DerivedReactiveArrayBuilder<T> {
-        return this.add<T>(new FilterTransform<T>(predicate));
+        return this.addEvent<T>(new FilterTransform<T>(predicate));
     }
 
     public map<TNew>(transform: (value: T, index: number, arr: T[]) => TNew): DerivedReactiveArrayBuilder<TNew> {
-        return this.add<TNew>(new MapTransform<T, TNew>(transform));
+        return this.addEvent<TNew>(new MapTransform<T, TNew>(transform));
     }
 
     public sort(compareFunction?: (first: T, second: T) => number): DerivedReactiveArrayBuilder<T> {
-        return this.add<T>(new SortTransform<T>(compareFunction));
+        return this.addArray<T>(new SortTransform<T>(compareFunction));
     }
 
     public build(): ReactiveArray<T> {
-        return new DerivedReactiveArray<any, T>(this.parent, this.steps);
+        return new DerivedReactiveArray<any, T>(this.parent, this.eventSteps, this.arraySteps);
     }
 }
