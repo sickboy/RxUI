@@ -134,11 +134,11 @@ describe("ReactiveArray", () => {
             expect(sorted.getItem(2)).to.equal("Zed");
         });
         it("should use the given compare function", () => {
-            var arr = ReactiveArray.of("Value", "Zed", "Add");
-            var sorted = arr.sort((a, b) => a.length > b.length ? 1 : 0);
+            var arr = ReactiveArray.of("Value", "Zed", "Good");
+            var sorted = arr.sort((a, b) => a.length > b.length ? 1 : a.length == b.length ? 0 : -1);
             expect(sorted.length).to.equal(3);
             expect(sorted.getItem(0)).to.equal("Zed");
-            expect(sorted.getItem(1)).to.equal("Add");
+            expect(sorted.getItem(1)).to.equal("Good");
             expect(sorted.getItem(2)).to.equal("Value");
         });
     });
