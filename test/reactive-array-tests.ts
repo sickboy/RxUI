@@ -1,5 +1,5 @@
 import {ReactiveObject} from "../src/reactive-object";
-import {ReactiveArray} from "../src/reactive-array";
+import {ReactiveArray, DerivedReactiveArrayBuilder} from "../src/reactive-array";
 import {CollectionChangedEventArgs} from "../src/events/collection-changed-event-args";
 import {Observable, Subject, TestScheduler} from "rxjs/Rx";
 import {expect} from "chai";
@@ -122,6 +122,24 @@ describe("ReactiveArray", () => {
             var filtered = arr.filter(str => str[0] === 'H');
             expect(filtered.length).to.equal(1);
             expect(filtered.getItem(0)).to.equal("Hello");
+        });
+    });
+    describe("#sort()", () => {
+        it("should return a new ReactiveArray that is sorted", () => {
+            var arr = ReactiveArray.of("Value", "Zed", "Add");
+            var sorted = arr.sort();
+            expect(sorted.length).to.equal(3);
+            expect(sorted.getItem(0)).to.equal("Add");
+            expect(sorted.getItem(1)).to.equal("Value");
+            expect(sorted.getItem(2)).to.equal("Zed");
+        });
+        it("should use the given compare function", () => {
+            var arr = ReactiveArray.of("Value", "Zed", "Add");
+            var sorted = arr.sort((a, b) => a.length > b.length ? 1 : 0);
+            expect(sorted.length).to.equal(3);
+            expect(sorted.getItem(0)).to.equal("Zed");
+            expect(sorted.getItem(1)).to.equal("Add");
+            expect(sorted.getItem(2)).to.equal("Value");
         });
     });
     describe("#forEach()", () => {
@@ -302,6 +320,87 @@ describe("ReactiveArray", () => {
             expect(second.getItem(0)).to.equal("Hello");
             expect(second.getItem(1)).to.equal("World");
             expect(second.getItem(2)).to.be.null;
+        });
+    });
+    describe("#derived", () => {
+        it("should return a new DerivedReactiveArrayBuilder", () => {
+            var arr = ReactiveArray.of("Worlds!");
+            var builder = arr.derived;
+            expect(builder).to.be.instanceOf(DerivedReactiveArrayBuilder);
+        });
+        it("should not allow modification", () => {
+            var first = ReactiveArray.of("Stuff");
+            var second = first.derived.build();
+            expect(() => {
+                second.push("More Stuff");
+            }).to.throw();
+            expect(() => {
+                second.pop();
+            }).to.throw();
+            expect(() => {
+                second.splice(0, 1);
+            }).to.throw();
+            expect(() => {
+                second.setItem(0, "More Stuff");
+            }).to.throw();
+        });
+        describe("#filter()", () => {
+            it("should produce a ReactiveArray that only contains items that match the predicate", () => {
+                var first = ReactiveArray.of("Hello", "World");
+                var second = first.derived.filter(s => s[0] === "H").build();
+
+                expect(second.length).to.equal(1);
+                expect(second.getItem(0)).to.equal("Hello");
+
+                first.push("Honest");
+
+                expect(second.length).to.equal(2);
+                expect(second.getItem(0)).to.equal("Hello");
+                expect(second.getItem(1)).to.equal("Honest");
+            });
+            it("should handle removed items from the parent array", () => {
+                var first = ReactiveArray.of("Hello", "World", "Honest");
+                var second = first.derived.filter(s => s[0] === "H").build();
+                first.pop();
+                expect(second.length).to.equal(1);
+                expect(second.getItem(0)).to.equal("Hello");
+            });
+        });
+        describe("#map()", () => {
+            it("should produce a ReactiveArray that contains items transformed with the given function", () => {
+                var first = ReactiveArray.of("Hello", "World");
+                var second = first.derived.map(s => s.length).build();
+
+                expect(second.length).to.equal(2);
+                expect(second.getItem(0)).to.equal(5);
+                expect(second.getItem(1)).to.equal(5);
+
+                first.push("Honest");
+
+                expect(second.length).to.equal(3);
+                expect(second.getItem(0)).to.equal(5);
+                expect(second.getItem(1)).to.equal(5);
+                expect(second.getItem(2)).to.equal(6);
+            });
+        });
+        describe("#sort()", () => {
+            it("should produce a ReactiveArray that contains sorted items", () => {
+                var first = ReactiveArray.of("B", "Q", "A");
+                var second = first.derived.sort().build();
+
+                expect(second.length).to.equal(3);
+                expect(second.getItem(0)).to.equal("A");
+                expect(second.getItem(1)).to.equal("B");
+                expect(second.getItem(2)).to.equal("Q");
+
+                first.push("C");
+
+                expect(second.length).to.equal(4);
+                expect(second.getItem(0)).to.equal("A");
+                expect(second.getItem(1)).to.equal("B");
+                expect(second.getItem(2)).to.equal("C");
+                expect(second.getItem(3)).to.equal("Q");
+            });
         });
     });
 });
