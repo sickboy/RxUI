@@ -18,12 +18,20 @@ export class ReactiveArray<T> extends ReactiveObject {
         return this._array[index];
     }
 
+    public setItem(index: number, value: T): void {
+        this._array[index] = value;
+    }
+
     public push(...values: T[]): void {
-        this._array.push(...values);
+        this.trackPropertyChanges("length", () => {
+            this._array.push(...values);
+        });
     }
 
     public pop(): T {
-        return this._array.pop();
+        return this.trackPropertyChanges("length", () => {
+            return this._array.pop();
+        });
     }
 
     public get length(): number {
@@ -35,8 +43,10 @@ export class ReactiveArray<T> extends ReactiveObject {
     }
 
     public splice(start: number, deleteCount: number, ...items: T[]): ReactiveArray<T> {
-        var deleted = this._array.splice(start, deleteCount, ...items);
-        return ReactiveArray.from(deleted);
+        return this.trackPropertyChanges("length", () => {
+            var deleted = this._array.splice(start, deleteCount, ...items);
+            return ReactiveArray.from(deleted);
+        });
     }
 
     public map<TNew>(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => TNew, thisArg?: any): ReactiveArray<TNew> {
@@ -82,5 +92,4 @@ export class ReactiveArray<T> extends ReactiveObject {
     public static of<T>(...values: T[]): ReactiveArray<T> {
         return ReactiveArray.from(values);
     }
-
 }

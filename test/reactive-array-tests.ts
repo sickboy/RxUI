@@ -6,6 +6,23 @@ import {MyObject} from "./models/my-object";
 import {MyOtherObject} from "./models/my-other-object";
 
 describe("ReactiveArray", () => {
+    describe("#getItem()", () => {
+        it("should return the value at the given index", () => {
+            var arr = ReactiveArray.of("First", "Second");
+            expect(arr.getItem(0)).to.equal("First");
+        });
+        it("should return undefined if the value doesnt exist", () => {
+            var arr = new ReactiveArray<string>();
+            expect(arr.getItem(0)).to.be.undefined;
+        });
+    });
+    describe("#setItem()", () => {
+        it("should set the item at the index to the given value", () => {
+            var arr = ReactiveArray.of("First", "Second");
+            arr.setItem(0, "New");
+            expect(arr.getItem(0)).to.equal("New");
+        });
+    });
     describe("#push()", () => {
         it("should add the given value to the end of the array", () => {
             var arr = new ReactiveArray<string>();
@@ -140,6 +157,32 @@ describe("ReactiveArray", () => {
             var arr = ReactiveArray.of("Hello", "World", "Hello", "World");
             var index = arr.lastIndexOf("Not Found");
             expect(index).to.equal(-1);
+        });
+    });
+    describe("#whenAnyValue('length')", () => {
+        it("should resolve after #push() has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var lengthEvents = [];
+            arr.whenAnyValue("length").skip(1).subscribe(l => lengthEvents.push(l));
+            arr.push("New", "Values");
+            expect(lengthEvents.length).to.equal(1);
+            expect(lengthEvents[0]).to.equal(3);
+        });
+        it("should resolve after #pop() has been called", () => {
+            var arr = ReactiveArray.of("Value");
+            var lengthEvents = [];
+            arr.whenAnyValue("length").skip(1).subscribe(l => lengthEvents.push(l));
+            arr.pop();
+            expect(lengthEvents.length).to.equal(1);
+            expect(lengthEvents[0]).to.equal(0);
+        });
+        it("should resolve after #splice() has been called with changed property value", () => {
+            var arr = ReactiveArray.of("Value1", "Value2", "Value3");
+            var lengthEvents = [];
+            arr.whenAnyValue("length").skip(1).subscribe(l => lengthEvents.push(l));
+            arr.splice(0, 2);
+            expect(lengthEvents.length).to.equal(1);
+            expect(lengthEvents[0]).to.equal(1);
         });
     });
     describe(".of()", () => {

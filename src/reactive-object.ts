@@ -48,6 +48,27 @@ export class ReactiveObject {
         this._propertyChanged.next(this.createPropertyChangedEventArgs(propertyName, propValue));
     }
 
+    /**
+     * Emits a new property changed event for the given property if it has changed from the previous value.
+     */
+    protected emitIfPropertyChanged(propertyName: string, oldPropertyValue: any): void {
+        var currentValue = ReactiveObject.get(this, propertyName);
+        if(currentValue !== oldPropertyValue) {
+            this.emitPropertyChanged(propertyName, currentValue);
+        }
+    }
+
+    /**
+     * Records the given property before and after the given function is run and raises a property changed notification
+     * if the property value changed.
+     */
+    protected trackPropertyChanges<T>(prop: string, callback: () => T): T {
+        var val = ReactiveObject.get(this, prop);
+        var ret = callback();
+        this.emitIfPropertyChanged(prop, val);
+        return ret;
+    }
+
     private static getSingleProperty<TObj, T>(
         obj: TObj,
         property: string): T | any {
