@@ -431,6 +431,12 @@ describe("ReactiveArray", () => {
             expect(() => {
                 second.setItem(0, "More Stuff");
             }).to.throw();
+            expect(() => {
+                second.unshift("More Stuff");
+            }).to.throw();
+            expect(() => {
+                second.shift();
+            }).to.throw();
         });
         it("should be able to combine multiple transforms", () => {
             var first = ReactiveArray.of("Hello", "World", null, "Greatness", "from", "Small", "Beginnings");

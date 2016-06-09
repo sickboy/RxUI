@@ -181,12 +181,20 @@ class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
         return DerivedReactiveArray.throwNotSupported();
     }
 
+    public shift(): TOut {
+        return DerivedReactiveArray.throwNotSupported();
+    }
+
+    public unshift(...values: TOut[]): void {
+        return DerivedReactiveArray.throwNotSupported();
+    }
+
     public setItem(index: number, value: TOut): void {
         DerivedReactiveArray.throwNotSupported();
     }
 
     private static throwNotSupported(): any {
-        throw new Error("Derived arrays do not support modification.");
+        throw new Error("Derived arrays do not support modification. If you want support for two-way derived arrays, file an issue at https://github.com/KallynGowdy/RxUI/issues.");
     }
 
     /**
