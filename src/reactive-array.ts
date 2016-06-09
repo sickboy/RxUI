@@ -39,6 +39,34 @@ export class ReactiveArray<T> extends ReactiveObject {
         return ReactiveArray.from(deleted);
     }
 
+    public map<TNew>(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => TNew, thisArg?: any): ReactiveArray<TNew> {
+        var newArr = new ReactiveArray<TNew>();
+        var bound = callback;
+        if (thisArg) {
+            bound = callback.bind(thisArg);
+        }
+        newArr._array = this._array.map((value, index, arr) => bound(value, index, this));
+        return newArr;
+    }
+
+    public filter(callback: (value: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): ReactiveArray<T> {
+        var newArr = new ReactiveArray<T>();
+        var bound = callback;
+        if (thisArg) {
+            bound = callback.bind(thisArg);
+        }
+        newArr._array = this._array.filter((value, index, arr) => bound(value, index, this));
+        return newArr;
+    }
+
+    public forEach(callback: (value: T, index?: number, array?: ReactiveArray<T>) => void, thisArg?: any): void {
+        var bound = callback;
+        if (thisArg) {
+            bound = callback.bind(thisArg);
+        }
+        this._array.forEach((value, index, arr) => bound(value, index, this));
+    }
+
     public static from<T>(arr: T[] | ReactiveArray<T>): ReactiveArray<T> {
         return new ReactiveArray<T>(arr);
     }

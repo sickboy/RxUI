@@ -89,6 +89,35 @@ describe("ReactiveArray", () => {
             expect(arr.getItem(7)).to.equal("Sixth");
         });
     });
+    describe("#map()", () => {
+        it("should return a new ReactiveArray with the transformed elements", () => {
+            var arr = ReactiveArray.of("Hello", "World");
+            var mapped = arr.map(str => str.length);
+            expect(mapped.length).to.equal(2);
+            expect(mapped.getItem(0)).to.equal(5);
+            expect(mapped.getItem(1)).to.equal(5);
+        });
+    });
+    describe("#filter()", () => {
+        it("should return a new ReactiveArray with the unmatched values removed", () => {
+            var arr = ReactiveArray.of("Hello", "World");
+            var filtered = arr.filter(str => str[0] === 'H');
+            expect(filtered.length).to.equal(1);
+            expect(filtered.getItem(0)).to.equal("Hello");
+        });
+    });
+    describe("#forEach()", () => {
+        it("should iterate over each of the elements", () => {
+            var arr = ReactiveArray.of("Hello", "World");
+            var other = new ReactiveArray<string>();
+            arr.forEach((value, index) => {
+                other.push(value + index);
+            });
+            expect(other.length).to.equal(2);
+            expect(other.getItem(0)).to.equal("Hello0");
+            expect(other.getItem(1)).to.equal("World1");
+        });
+    });
     describe(".of()", () => {
         it("should create a ReactiveArray from the given values", () => {
             var arr = ReactiveArray.of("First", "Second", "Third", null);
