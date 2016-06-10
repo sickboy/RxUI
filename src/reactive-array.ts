@@ -1,6 +1,7 @@
 import {ReactiveObject} from "./reactive-object";
 import {Observable, Subject} from "rxjs/Rx";
 import {CollectionChangedEventArgs} from "./events/collection-changed-event-args";
+import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 
 export class ReactiveArray<T> extends ReactiveObject {
     private _array: T[];
@@ -146,6 +147,34 @@ export class ReactiveArray<T> extends ReactiveObject {
         } else {
             return this._array.reduce((prev, current, index) => callback(prev, current, index, this));
         }
+    }
+
+    public whenAnyItem<TProp>(property: (((vm: T) => TProp) | string)): Observable<PropertyChangedEventArgs<TProp>> {
+        var derived = this.derived
+            .filter(i => i != null)
+            .map(i => {
+                var obj = (<ReactiveObject><any>i);
+                var when = obj.whenAny<TProp>(<any>property);
+
+                // unique behavior to get the first element to be emitted
+                // but never re-emitted when resubscribed to.
+                return when.publish().refCount();
+            })
+            .build();
+
+        return derived
+            .toObservable()
+            .map(o => Observable.merge(...o))
+            .switch()
+            .distinct(); // May be a performance hit for long running sequences.
+    }
+
+    public whenAnyItemValue<TProp>(property: (((vm: T) => TProp) | string)): Observable<TProp> {
+        return this.whenAnyItem(property).map(e => e.newPropertyValue);
+    }
+
+    public whenAnyItemObservable<TProp>(property: (((vm: T) => Observable<TProp>) | string)): Observable<TProp> {
+        return this.whenAnyItemValue(property).filter(o => o != null).mergeAll();
     }
 
     public get derived(): DerivedReactiveArrayBuilder<T> {

@@ -1,6 +1,7 @@
 import {ReactiveObject} from "../src/reactive-object";
 import {ReactiveArray, DerivedReactiveArrayBuilder} from "../src/reactive-array";
 import {CollectionChangedEventArgs} from "../src/events/collection-changed-event-args";
+import {PropertyChangedEventArgs} from "../src/events/property-changed-event-args";
 import {Observable, Subject, TestScheduler} from "rxjs/Rx";
 import {expect} from "chai";
 import {MyObject} from "./models/my-object";
@@ -314,6 +315,118 @@ describe("ReactiveArray", () => {
             expect(lengthEvents[0]).to.equal(1);
         });
     });
+    describe("#whenAnyItem(prop)", () => {
+        it("should resolve when the given property changes on any of the items", () => {
+            var obj1 = new ReactiveObject();
+            var obj2 = new ReactiveObject();
+            var obj3 = new ReactiveObject();
+
+            var arr = ReactiveArray.of(obj1, obj2, obj3);
+            var events: PropertyChangedEventArgs<string>[] = [];
+            arr.whenAnyItem("prop").subscribe(e => events.push(e));
+
+            obj1.set("prop", "Value");
+            expect(events.length).to.equal(4);
+            expect(events[0].sender).to.equal(obj1);
+            expect(events[0].propertyName).to.equal("prop");
+            expect(events[0].newPropertyValue).to.be.null;
+            expect(events[1].sender).to.equal(obj2);
+            expect(events[1].propertyName).to.equal("prop");
+            expect(events[1].newPropertyValue).to.be.null;
+            expect(events[2].sender).to.equal(obj3);
+            expect(events[2].propertyName).to.equal("prop");
+            expect(events[2].newPropertyValue).to.be.null;
+            expect(events[3].sender).to.equal(obj1);
+            expect(events[3].propertyName).to.equal("prop");
+            expect(events[3].newPropertyValue).to.equal("Value");
+        });
+        it("should resolve when a new item is added", () => {
+            var obj1 = new ReactiveObject();
+            var obj2 = new ReactiveObject();
+            var obj3 = new ReactiveObject();
+            var obj4 = new ReactiveObject();
+
+            var arr = ReactiveArray.of(obj1, obj2, obj3);
+            var events: PropertyChangedEventArgs<string>[] = [];
+            arr.whenAnyItem("prop").skip(3).subscribe(e => events.push(e));
+            arr.push(obj4);
+            expect(events.length).to.equal(1);
+            expect(events[0].sender).to.equal(obj4);
+            expect(events[0].propertyName).to.equal("prop");
+            expect(events[0].newPropertyValue).to.be.null;
+        });
+    });
+    describe("#whenAnyItemValue()", () => {
+        it("should resolve when the given property changes on any of the items", () => {
+            var obj1 = new ReactiveObject();
+            var obj2 = new ReactiveObject();
+            var obj3 = new ReactiveObject();
+
+            var arr = ReactiveArray.of(obj1, obj2, obj3);
+            var events: string[] = [];
+            arr.whenAnyItemValue<string>("prop").subscribe(e => events.push(e));
+
+            obj1.set("prop", "Value");
+            expect(events).to.eql([null, null, null, "Value"]);
+        });
+        it("should resolve when a new item is added", () => {
+            var obj1 = new ReactiveObject();
+            var obj2 = new ReactiveObject();
+            var obj3 = new ReactiveObject();
+            var obj4 = new ReactiveObject();
+            obj4.set("prop", "Value");
+            var arr = ReactiveArray.of(obj1, obj2, obj3);
+            var events: string[] = [];
+            arr.whenAnyItemValue<string>("prop").skip(3).subscribe(e => events.push(e));
+            arr.push(obj4);
+            expect(events.length).to.equal(1);
+            expect(events).to.eql(["Value"]);
+        });
+    });
+    describe("#whenAnyItemObservable()", () => {
+        it("should resolve when any of the observables from the items resolve", () => {
+            var obj1 = new ReactiveObject();
+            var obj2 = new ReactiveObject();
+            var obj1Subject = new Subject<string>();
+            var obj2Subject = new Subject<string>();
+            var arr = ReactiveArray.of(obj1, obj2);
+
+            obj1.set("observable", obj1Subject);
+            obj2.set("observable", obj2Subject);
+
+            var events: string[] = [];
+            arr.whenAnyItemObservable<string>("observable").subscribe(e => events.push(e));
+            expect(events).to.eql([]);
+            obj1Subject.next("First");
+            expect(events).to.eql(["First"]);
+            obj2Subject.next("Second");
+            expect(events).to.eql(["First", "Second"]);
+            obj1.set("observable", Observable.of("Other"));
+            expect(events).to.eql(["First", "Second", "Other"]);                     
+        });
+        it("should resolve when an observable from an added item resolves", () => {
+            var obj1 = new ReactiveObject();
+            var obj2 = new ReactiveObject();
+            var obj3 = new ReactiveObject();
+            var obj1Subject = new Subject<string>();
+            var obj2Subject = new Subject<string>();
+            var arr = ReactiveArray.of(obj1, obj2);
+
+            obj1.set("observable", obj1Subject);
+            obj2.set("observable", obj2Subject);
+
+            var events: string[] = [];
+            arr.whenAnyItemObservable<string>("observable").subscribe(e => events.push(e));
+            expect(events).to.eql([]);
+            obj1Subject.next("First");
+            obj2Subject.next("Second");
+            arr.push(obj3);
+            expect(events).to.eql(["First", "Second"]);
+            obj3.set("observable", Observable.of("Great!"));
+            obj1.set("observable", Observable.of("Other"));
+            expect(events).to.eql(["First", "Second", "Great!", "Other"]);
+        });
+    }); 
     describe("#itemsAdded", () => {
         it("should resolve after #push() has been called", () => {
             var arr = ReactiveArray.of("Value");
