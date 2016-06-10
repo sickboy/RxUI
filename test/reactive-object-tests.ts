@@ -20,6 +20,22 @@ describe("ReactiveObject", () => {
             }
         }
     }
+    describe("constructor()", () => {
+        it("should create a shallow copy of the given object", () => {
+            var first = {
+                prop: "Value",
+                other: 10,
+                float: 14.4,
+                obj: { hello: "world!" },
+                removed: undefined
+            };
+            var obj = new ReactiveObject(first);
+            expect(obj.get("prop")).to.equal("Value");
+            expect(obj.get("other")).to.equal(10);
+            expect(obj.get("float")).to.equal(14.4);
+            expect(obj.get("obj")).to.equal(first.obj);
+        });
+    });
     describe("#set()", () => {
         it("should change the value retrieved by .get()", () => {
             var obj: ReactiveObject = new ReactiveObject();
@@ -1041,6 +1057,67 @@ describe("ReactiveObject", () => {
             expect(() => {
                 var sub = obj.toProperty(Observable.of(false, true), "prop.val");
             }).to.throw("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
+        });
+    });
+    describe("#toJSON()", () => {
+        it("should return the data that has been set in the object", () => {
+            var obj = new ReactiveObject();
+            obj.set("prop", "Value");
+            obj.set("otherProp", 10);
+            obj.set("greatProp", 14.4);
+            obj.set("myProp", { hello: "World!" });
+            obj.set("null", null);
+            obj.set("undefined", undefined); // Should not be in the returned data.
+            var json = obj.toJSON();
+            expect(json).to.eql({
+                prop: "Value",
+                otherProp: 10,
+                greatProp: 14.4,
+                myProp: { hello: "World!" },
+                "null": null
+            });
+        });
+        it("should return a copy of the data that is in the object", () => {
+            var obj = new ReactiveObject();
+            obj.set("prop", "Value");
+            var json = obj.toJSON();
+            json["prop"] = "Other";
+            expect(obj.get("prop")).to.equal("Value");
+        });
+    });
+    describe("#toString()", () => {
+        it("should return the JSON representation of the object", () => {
+            var obj = new ReactiveObject();
+            obj.set("prop", "Value");
+            var str = obj.toString();
+            expect(str).to.equal('{"prop":"Value"}');
+        });
+    });
+    describe(".keys()", () => {
+        it("should return the names of the properties that have been set on the object", () => {
+            var obj = new ReactiveObject();
+            obj.set("prop", "Value");
+            obj.set("some-krazy_property+name!", null);
+            obj.set("undefinedProp", undefined); // undefined properties are not allowed to be set
+
+            var keys = ReactiveObject.keys(obj);
+            expect(keys).to.eql([
+                "prop",
+                "some-krazy_property+name!"
+            ]);
+        });
+        it("should return the names of the properties set on a regular object", () => {
+            var obj = {
+                prop: "Value",
+                "some-krazy_property+name!": null,
+                undefinedProp: undefined // undefined properties exist on regular objects
+            };
+            var keys = ReactiveObject.keys(obj);
+            expect(keys).to.eql([
+                "prop",
+                "some-krazy_property+name!",
+                "undefinedProp"
+            ]);
         });
     });
 });
