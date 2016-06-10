@@ -232,6 +232,29 @@ describe("ReactiveArray", () => {
             expect(str).to.equal("[[object Object]]");
         });
     });
+    describe("#toJSON()", () => {
+        it("should return an array of objects", () => {
+            var arr = ReactiveArray.of("First", "Second");
+            var json = arr.toJSON();
+            expect(json).to.eql(["First", "Second"]);
+        });
+        it("should map internal objects with their toJSON implementations", () => {
+            var obj1 = {
+                toJSON() {
+                    return "Custom"
+                }
+            };
+            var obj2 = {
+                toJSON() {
+                    return "Value"
+                }
+            };
+
+            var arr = ReactiveArray.of(obj1, obj2);
+            var json = arr.toJSON();
+            expect(json).to.eql(["Custom", "Value"]);
+        });
+    });
     describe("#toObservable()", () => {
         it("should resolve when subscribed to", () => {
             var arr = ReactiveArray.of("First", "Second");

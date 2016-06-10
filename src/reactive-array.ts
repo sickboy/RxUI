@@ -175,6 +175,18 @@ export class ReactiveArray<T> extends ReactiveObject {
             .refCount();
     }
 
+    public toJSON(): any {
+        return this.map((v: any) => {
+            if (typeof v === "undefined" || v === null) {
+                return null;
+            } else if (typeof v.toJSON === "function") {
+                return v.toJSON();
+            } else {
+                return v;
+            }
+        }).toArray();
+    }
+
     public toString(): string {
         var items = this._array.map(i => {
             var type = typeof i;
