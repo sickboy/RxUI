@@ -612,6 +612,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.prototype.toProperty = function (observable, property, scheduler) {
 	        return ReactiveObject.bindObservable(observable, this, property, scheduler);
 	    };
+	    ReactiveObject.prototype.toJSON = function () {
+	        var clone = {};
+	        for (var key in this.__data) {
+	            if (this.__data.hasOwnProperty(key)) {
+	                clone[key] = this.__data[key];
+	            }
+	        }
+	        return clone;
+	    };
+	    ReactiveObject.prototype.toString = function () {
+	        return JSON.stringify(this);
+	    };
 	    return ReactiveObject;
 	}());
 	exports.ReactiveObject = ReactiveObject;

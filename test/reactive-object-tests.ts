@@ -1043,4 +1043,38 @@ describe("ReactiveObject", () => {
             }).to.throw("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
         });
     });
+    describe("#toJSON()", () => {
+        it("should return the data that has been set in the object", () => {
+            var obj = new ReactiveObject();
+            obj.set("prop", "Value");
+            obj.set("otherProp", 10);
+            obj.set("greatProp", 14.4);
+            obj.set("myProp", { hello: "World!" });
+            obj.set("null", null);
+            obj.set("undefined", undefined); // Should not be in the returned data.
+            var json = obj.toJSON();
+            expect(json).to.eql({
+                prop: "Value",
+                otherProp: 10,
+                greatProp: 14.4,
+                myProp: { hello: "World!" },
+                "null": null
+            });
+        });
+        it("should return a copy of the data that is in the object", () => {
+            var obj = new ReactiveObject();
+            obj.set("prop", "Value");
+            var json = obj.toJSON();
+            json["prop"] = "Other";
+            expect(obj.get("prop")).to.equal("Value");
+        });
+    });
+    describe("#toString()", () => {
+        it("should return the JSON representation of the object", () => {
+            var obj = new ReactiveObject();
+            obj.set("prop", "Value");
+            var str = obj.toString();
+            expect(str).to.equal('{"prop":"Value"}');
+        });
+    });
 });

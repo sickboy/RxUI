@@ -53,7 +53,7 @@ export class ReactiveObject {
      */
     protected emitIfPropertyChanged(propertyName: string, oldPropertyValue: any): void {
         var currentValue = ReactiveObject.get(this, propertyName);
-        if(currentValue !== oldPropertyValue) {
+        if (currentValue !== oldPropertyValue) {
             this.emitPropertyChanged(propertyName, currentValue);
         }
     }
@@ -797,5 +797,19 @@ export class ReactiveObject {
      */
     public toProperty<TObservable, TProp>(observable: Observable<TObservable>, property: (((o: this) => TProp) | string), scheduler?: Scheduler): Subscription {
         return ReactiveObject.bindObservable(observable, this, property, scheduler);
+    }
+
+    public toJSON(): any {
+        var clone = {};
+        for (var key in this.__data) {
+            if (this.__data.hasOwnProperty(key)) {
+                clone[key] = this.__data[key];
+            }
+        }
+        return clone;
+    }
+
+    public toString(): string {
+        return JSON.stringify(this);
     }
 }
