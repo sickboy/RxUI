@@ -114,6 +114,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var propValue = newPropertyValue != null ? newPropertyValue : this.get(propertyName);
 	        this._propertyChanged.next(this.createPropertyChangedEventArgs(propertyName, propValue));
 	    };
+	    /**
+	     * Emits a new property changed event for the given property if it has changed from the previous value.
+	     */
+	    ReactiveObject.prototype.emitIfPropertyChanged = function (propertyName, oldPropertyValue) {
+	        var currentValue = ReactiveObject.get(this, propertyName);
+	        if (currentValue !== oldPropertyValue) {
+	            this.emitPropertyChanged(propertyName, currentValue);
+	        }
+	    };
+	    /**
+	     * Records the given property before and after the given function is run and raises a property changed notification
+	     * if the property value changed.
+	     */
+	    ReactiveObject.prototype.trackPropertyChanges = function (prop, callback) {
+	        var val = ReactiveObject.get(this, prop);
+	        var ret = callback();
+	        this.emitIfPropertyChanged(prop, val);
+	        return ret;
+	    };
 	    ReactiveObject.getSingleProperty = function (obj, property) {
 	        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
 	            return obj[property];
