@@ -208,6 +208,47 @@ describe("ReactiveArray", () => {
             expect(index).to.equal(-1);
         });
     });
+    describe("#reduce", () => {
+        it("should produce a single value from the array", () => {
+            var arr = ReactiveArray.of(10, 10, 10);
+            var result = arr.reduce((a, b) => a + b);
+            expect(result).to.equal(30);
+        });
+        it("should handle having only a single element in the array", () => {
+            var arr = ReactiveArray.of(10);
+            var result = arr.reduce((a, b) => a + b);
+            expect(result).to.equal(10);
+        });
+    });
+    describe("#toString()", () => {
+        it("should present each of the array values surrounded by brackets", () => {
+            var arr = ReactiveArray.of(undefined, "First", "Second", "Third", null);
+            var str = arr.toString();
+            expect(str).to.equal("[undefined, 'First', 'Second', 'Third', null]");
+        });
+        it("should handle objects", () => {
+            var arr = ReactiveArray.of({ hello: "world!" });
+            var str = arr.toString();
+            expect(str).to.equal("[[object Object]]");
+        });
+    });
+    describe("#toObservable()", () => {
+        it("should resolve when subscribed to", () => {
+            var arr = ReactiveArray.of("First", "Second");
+            var events = [];
+            arr.toObservable().subscribe(a => events.push(a));
+            expect(events.length).to.equal(1);
+            expect(events[0]).to.eql(["First", "Second"]);
+        });
+        it("should resolve when the array changes", () => {
+            var arr = ReactiveArray.of("First", "Second");
+            var events = [];
+            arr.toObservable().skip(1).subscribe(a => events.push(a));
+            arr.push("Third");
+            expect(events.length).to.equal(1);
+            expect(events[0]).to.eql(["First", "Second", "Third"]);
+        });
+    });
     describe("#whenAnyValue('length')", () => {
         it("should resolve after #push() has been called", () => {
             var arr = ReactiveArray.of("Value");

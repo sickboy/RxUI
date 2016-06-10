@@ -1,8 +1,6 @@
 import {ReactiveObject} from "./reactive-object";
-import {Observable} from "rxjs/Observable";
-import {Subject} from "rxjs/Subject";
+import {Observable, Subject} from "rxjs/Rx";
 import {CollectionChangedEventArgs} from "./events/collection-changed-event-args";
-import "rxjs/add/operator/filter";
 
 export class ReactiveArray<T> extends ReactiveObject {
     private _array: T[];
@@ -142,6 +140,14 @@ export class ReactiveArray<T> extends ReactiveObject {
         this._array.forEach((value, index, arr) => bound(value, index, this));
     }
 
+    public reduce(callback: (previousValue: T, currentValue: T, currentIndex: number, arr: ReactiveArray<T>) => T, initialValue?: T): T {
+        if (typeof initialValue !== "undefined") {
+            return this._array.reduce((prev, current, index) => callback(prev, current, index, this), initialValue);
+        } else {
+            return this._array.reduce((prev, current, index) => callback(prev, current, index, this));
+        }
+    }
+
     public get derived(): DerivedReactiveArrayBuilder<T> {
         return new DerivedReactiveArrayBuilder(this);
     }
@@ -156,6 +162,33 @@ export class ReactiveArray<T> extends ReactiveObject {
 
     public toArray(): T[] {
         return this._array.slice();
+    }
+
+    /**
+     * Converts this reactive array into an observable stream that contains
+     * the snapshots of this array's values.
+     */
+    public toObservable(): Observable<T[]> {
+        return this.changed.map(e => this.toArray())
+            .startWith(this.toArray())
+            .publishReplay(1)
+            .refCount();
+    }
+
+    public toString(): string {
+        var items = this._array.map(i => {
+            var type = typeof i;
+            if (type === "undefined") {
+                return "undefined";
+            } else if (i === null) {
+                return "null";
+            } else if (type === "string") {
+                return `'${i}'`;
+            } else {
+                return i.toString();
+            }
+        }).join(", ");
+        return `[${items}]`
     }
 }
 
