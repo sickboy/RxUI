@@ -90,9 +90,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	    /**
 	     * Creates a new reactive object.
 	     */
-	    function ReactiveObject() {
+	    function ReactiveObject(obj) {
 	        this._propertyChanged = new Rx_1.Subject();
 	        this.__data = {};
+	        if (obj && typeof obj === "object") {
+	            for (var key in obj) {
+	                if (obj.hasOwnProperty(key)) {
+	                    this.set(key, obj[key]);
+	                }
+	            }
+	        }
 	    }
 	    Object.defineProperty(ReactiveObject.prototype, "propertyChanged", {
 	        /**
@@ -209,7 +216,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");
 	        }
 	    };
-	    ReactiveObject.setCore = function (obj, property, value, setSingle, setDeep) {
+	    ReactiveObject.traverse = function (obj, property, setSingle, setDeep) {
 	        var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
 	        if (evaluated.children.length === 1) {
 	            setSingle(evaluated);
@@ -219,7 +226,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    };
 	    ReactiveObject.set = function (obj, property, value) {
-	        ReactiveObject.setCore(obj, property, value, function (evaluated) {
+	        ReactiveObject.traverse(obj, property, function (evaluated) {
 	            ReactiveObject.setSingleProperty(obj, evaluated.property, value);
 	        }, function (evaluated) {
 	            ReactiveObject.setDeepProperty(obj, evaluated, value);
@@ -232,7 +239,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     */
 	    ReactiveObject.prototype.set = function (property, value) {
 	        var _this = this;
-	        ReactiveObject.setCore(this, property, value, function (evaluated) {
+	        ReactiveObject.traverse(this, property, function (evaluated) {
 	            ReactiveObject.setReactiveProperty(_this, evaluated.property, value);
 	        }, function (evaluated) {
 	            ReactiveObject.setDeepProperty(_this, evaluated, value);
@@ -612,17 +619,38 @@ return /******/ (function(modules) { // webpackBootstrap
 	    ReactiveObject.prototype.toProperty = function (observable, property, scheduler) {
 	        return ReactiveObject.bindObservable(observable, this, property, scheduler);
 	    };
+	    /**
+	     * Returns the data that should be used to convert this reactive object into a JSON string.
+	     */
 	    ReactiveObject.prototype.toJSON = function () {
+	        return ReactiveObject.clone(this.__data);
+	    };
+	    /**
+	     * Returns the string representation of this reactive object.
+	     */
+	    ReactiveObject.prototype.toString = function () {
+	        return JSON.stringify(this);
+	    };
+	    /**
+	     * Gets the list of enumerable property names that have been set on the given object.
+	     * @param obj The object whose enumerable property names should be returned.
+	     */
+	    ReactiveObject.keys = function (obj) {
+	        if (obj instanceof ReactiveObject) {
+	            return Object.keys(obj.__data);
+	        }
+	        else {
+	            return Object.keys(obj);
+	        }
+	    };
+	    ReactiveObject.clone = function (obj) {
 	        var clone = {};
-	        for (var key in this.__data) {
-	            if (this.__data.hasOwnProperty(key)) {
-	                clone[key] = this.__data[key];
+	        for (var key in obj) {
+	            if (obj.hasOwnProperty(key)) {
+	                clone[key] = obj[key];
 	            }
 	        }
 	        return clone;
-	    };
-	    ReactiveObject.prototype.toString = function () {
-	        return JSON.stringify(this);
 	    };
 	    return ReactiveObject;
 	}());

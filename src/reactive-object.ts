@@ -24,9 +24,16 @@ export class ReactiveObject {
     /**
      * Creates a new reactive object.
      */
-    constructor() {
+    constructor(obj?: Object) {
         this._propertyChanged = new Subject<PropertyChangedEventArgs<any>>();
         this.__data = {};
+        if (obj && typeof obj === "object") {
+            for (var key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    this.set(key, obj[key]);
+                }
+            }
+        }
     }
 
     /**
@@ -152,10 +159,9 @@ export class ReactiveObject {
         }
     }
 
-    private static setCore<TObj, T>(
+    private static traverse<TObj, T>(
         obj: TObj,
         property: string | ((vm: TObj) => T),
-        value: T,
         setSingle: (evaluated: { children: string[], property: string }) => void,
         setDeep: (evaluated: { children: string[], property: string }) => void) {
         var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
@@ -167,7 +173,7 @@ export class ReactiveObject {
     }
 
     private static set<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T), value: T) {
-        ReactiveObject.setCore(obj, property, value, (evaluated) => {
+        ReactiveObject.traverse(obj, property, (evaluated) => {
             ReactiveObject.setSingleProperty(obj, evaluated.property, value);
         }, (evaluated) => {
             ReactiveObject.setDeepProperty(obj, evaluated, value)
@@ -180,7 +186,7 @@ export class ReactiveObject {
      * @param value The value to give the property.
      */
     public set<T>(property: string | ((vm: this) => T), value: T): void {
-        ReactiveObject.setCore(this, property, value, (evaluated) => {
+        ReactiveObject.traverse(this, property, (evaluated) => {
             ReactiveObject.setReactiveProperty(this, evaluated.property, value);
         }, (evaluated) => {
             ReactiveObject.setDeepProperty(this, evaluated, value)
@@ -799,17 +805,39 @@ export class ReactiveObject {
         return ReactiveObject.bindObservable(observable, this, property, scheduler);
     }
 
+    /**
+     * Returns the data that should be used to convert this reactive object into a JSON string.
+     */
     public toJSON(): any {
+        return ReactiveObject.clone(this.__data);
+    }
+
+    /**
+     * Returns the string representation of this reactive object.
+     */
+    public toString(): string {
+        return JSON.stringify(this);
+    }
+
+    /**
+     * Gets the list of enumerable property names that have been set on the given object.
+     * @param obj The object whose enumerable property names should be returned.
+     */
+    public static keys(obj: Object): string[] {
+        if (obj instanceof ReactiveObject) {
+            return Object.keys(obj.__data);
+        } else {
+            return Object.keys(obj);
+        }
+    }
+
+    private static clone(obj: any): any {
         var clone = {};
-        for (var key in this.__data) {
-            if (this.__data.hasOwnProperty(key)) {
-                clone[key] = this.__data[key];
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                clone[key] = obj[key];
             }
         }
         return clone;
-    }
-
-    public toString(): string {
-        return JSON.stringify(this);
     }
 }
