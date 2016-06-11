@@ -3,7 +3,6 @@ import {Scheduler} from "rxjs/Scheduler";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
-import {ReactivePropertyInfo} from "./reactive-property-info";
 import {IViewBindingHelper} from "./view";
 import "harmony-reflect";
 
