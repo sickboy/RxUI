@@ -1,4 +1,4 @@
-import {Subscription} from "rxjs/Subscription";
+import {Subscription} from "rxjs/Rx";
 
 /**
  * Defines an interface that represents a handler function for an interaction.

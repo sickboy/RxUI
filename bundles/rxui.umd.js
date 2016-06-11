@@ -1047,7 +1047,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var Subscription_1 = __webpack_require__(18);
+	var Rx_1 = __webpack_require__(2);
 	/**
 	 * Defines a class that represents an interaction.
 	 * Interactions are designed to provide a means of resolving view-specific input mechanisms that occur
@@ -1067,7 +1067,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        if (!handler)
 	            throw Error("Null or undefined handlers cannot be registered. Pass in a valid handler function to properly register it.");
 	        this._handlerChain.unshift(handler);
-	        return new Subscription_1.Subscription(function () {
+	        return new Rx_1.Subscription(function () {
 	            var index = _this._handlerChain.indexOf(handler);
 	            if (index >= 0) {
 	                _this._handlerChain.splice(index, 1);
@@ -1116,251 +1116,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=reactive-interaction.js.map
 
 /***/ },
-/* 18 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var isArray_1 = __webpack_require__(19);
-	var isObject_1 = __webpack_require__(20);
-	var isFunction_1 = __webpack_require__(21);
-	var tryCatch_1 = __webpack_require__(22);
-	var errorObject_1 = __webpack_require__(23);
-	var UnsubscriptionError_1 = __webpack_require__(24);
-	/**
-	 * Represents a disposable resource, such as the execution of an Observable. A
-	 * Subscription has one important method, `unsubscribe`, that takes no argument
-	 * and just disposes the resource held by the subscription.
-	 *
-	 * Additionally, subscriptions may be grouped together through the `add()`
-	 * method, which will attach a child Subscription to the current Subscription.
-	 * When a Subscription is unsubscribed, all its children (and its grandchildren)
-	 * will be unsubscribed as well.
-	 *
-	 * @class Subscription
-	 */
-	var Subscription = (function () {
-	    /**
-	     * @param {function(): void} [unsubscribe] A function describing how to
-	     * perform the disposal of resources when the `unsubscribe` method is called.
-	     */
-	    function Subscription(unsubscribe) {
-	        /**
-	         * A flag to indicate whether this Subscription has already been unsubscribed.
-	         * @type {boolean}
-	         */
-	        this.isUnsubscribed = false;
-	        if (unsubscribe) {
-	            this._unsubscribe = unsubscribe;
-	        }
-	    }
-	    /**
-	     * Disposes the resources held by the subscription. May, for instance, cancel
-	     * an ongoing Observable execution or cancel any other type of work that
-	     * started when the Subscription was created.
-	     * @return {void}
-	     */
-	    Subscription.prototype.unsubscribe = function () {
-	        var hasErrors = false;
-	        var errors;
-	        if (this.isUnsubscribed) {
-	            return;
-	        }
-	        this.isUnsubscribed = true;
-	        var _a = this, _unsubscribe = _a._unsubscribe, _subscriptions = _a._subscriptions;
-	        this._subscriptions = null;
-	        if (isFunction_1.isFunction(_unsubscribe)) {
-	            var trial = tryCatch_1.tryCatch(_unsubscribe).call(this);
-	            if (trial === errorObject_1.errorObject) {
-	                hasErrors = true;
-	                (errors = errors || []).push(errorObject_1.errorObject.e);
-	            }
-	        }
-	        if (isArray_1.isArray(_subscriptions)) {
-	            var index = -1;
-	            var len = _subscriptions.length;
-	            while (++index < len) {
-	                var sub = _subscriptions[index];
-	                if (isObject_1.isObject(sub)) {
-	                    var trial = tryCatch_1.tryCatch(sub.unsubscribe).call(sub);
-	                    if (trial === errorObject_1.errorObject) {
-	                        hasErrors = true;
-	                        errors = errors || [];
-	                        var err = errorObject_1.errorObject.e;
-	                        if (err instanceof UnsubscriptionError_1.UnsubscriptionError) {
-	                            errors = errors.concat(err.errors);
-	                        }
-	                        else {
-	                            errors.push(err);
-	                        }
-	                    }
-	                }
-	            }
-	        }
-	        if (hasErrors) {
-	            throw new UnsubscriptionError_1.UnsubscriptionError(errors);
-	        }
-	    };
-	    /**
-	     * Adds a tear down to be called during the unsubscribe() of this
-	     * Subscription.
-	     *
-	     * If the tear down being added is a subscription that is already
-	     * unsubscribed, is the same reference `add` is being called on, or is
-	     * `Subscription.EMPTY`, it will not be added.
-	     *
-	     * If this subscription is already in an `isUnsubscribed` state, the passed
-	     * tear down logic will be executed immediately.
-	     *
-	     * @param {TeardownLogic} teardown The additional logic to execute on
-	     * teardown.
-	     * @return {Subscription} Returns the Subscription used or created to be
-	     * added to the inner subscriptions list. This Subscription can be used with
-	     * `remove()` to remove the passed teardown logic from the inner subscriptions
-	     * list.
-	     */
-	    Subscription.prototype.add = function (teardown) {
-	        if (!teardown || (teardown === this) || (teardown === Subscription.EMPTY)) {
-	            return;
-	        }
-	        var sub = teardown;
-	        switch (typeof teardown) {
-	            case 'function':
-	                sub = new Subscription(teardown);
-	            case 'object':
-	                if (sub.isUnsubscribed || typeof sub.unsubscribe !== 'function') {
-	                    break;
-	                }
-	                else if (this.isUnsubscribed) {
-	                    sub.unsubscribe();
-	                }
-	                else {
-	                    (this._subscriptions || (this._subscriptions = [])).push(sub);
-	                }
-	                break;
-	            default:
-	                throw new Error('Unrecognized teardown ' + teardown + ' added to Subscription.');
-	        }
-	        return sub;
-	    };
-	    /**
-	     * Removes a Subscription from the internal list of subscriptions that will
-	     * unsubscribe during the unsubscribe process of this Subscription.
-	     * @param {Subscription} subscription The subscription to remove.
-	     * @return {void}
-	     */
-	    Subscription.prototype.remove = function (subscription) {
-	        // HACK: This might be redundant because of the logic in `add()`
-	        if (subscription == null || (subscription === this) || (subscription === Subscription.EMPTY)) {
-	            return;
-	        }
-	        var subscriptions = this._subscriptions;
-	        if (subscriptions) {
-	            var subscriptionIndex = subscriptions.indexOf(subscription);
-	            if (subscriptionIndex !== -1) {
-	                subscriptions.splice(subscriptionIndex, 1);
-	            }
-	        }
-	    };
-	    Subscription.EMPTY = (function (empty) {
-	        empty.isUnsubscribed = true;
-	        return empty;
-	    }(new Subscription()));
-	    return Subscription;
-	}());
-	exports.Subscription = Subscription;
-	//# sourceMappingURL=Subscription.js.map
-
-/***/ },
-/* 19 */
-/***/ function(module, exports) {
-
-	"use strict";
-	exports.isArray = Array.isArray || (function (x) { return x && typeof x.length === 'number'; });
-	//# sourceMappingURL=isArray.js.map
-
-/***/ },
-/* 20 */
-/***/ function(module, exports) {
-
-	"use strict";
-	function isObject(x) {
-	    return x != null && typeof x === 'object';
-	}
-	exports.isObject = isObject;
-	//# sourceMappingURL=isObject.js.map
-
-/***/ },
-/* 21 */
-/***/ function(module, exports) {
-
-	"use strict";
-	function isFunction(x) {
-	    return typeof x === 'function';
-	}
-	exports.isFunction = isFunction;
-	//# sourceMappingURL=isFunction.js.map
-
-/***/ },
-/* 22 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var errorObject_1 = __webpack_require__(23);
-	var tryCatchTarget;
-	function tryCatcher() {
-	    try {
-	        return tryCatchTarget.apply(this, arguments);
-	    }
-	    catch (e) {
-	        errorObject_1.errorObject.e = e;
-	        return errorObject_1.errorObject;
-	    }
-	}
-	function tryCatch(fn) {
-	    tryCatchTarget = fn;
-	    return tryCatcher;
-	}
-	exports.tryCatch = tryCatch;
-	;
-	//# sourceMappingURL=tryCatch.js.map
-
-/***/ },
-/* 23 */
-/***/ function(module, exports) {
-
-	"use strict";
-	// typeof any so that it we don't have to cast when comparing a result to the error object
-	exports.errorObject = { e: {} };
-	//# sourceMappingURL=errorObject.js.map
-
-/***/ },
-/* 24 */
-/***/ function(module, exports) {
-
-	"use strict";
-	var __extends = (this && this.__extends) || function (d, b) {
-	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-	    function __() { this.constructor = d; }
-	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-	};
-	/**
-	 * An error thrown when one or more errors have occurred during the
-	 * `unsubscribe` of a {@link Subscription}.
-	 */
-	var UnsubscriptionError = (function (_super) {
-	    __extends(UnsubscriptionError, _super);
-	    function UnsubscriptionError(errors) {
-	        _super.call(this);
-	        this.errors = errors;
-	        this.name = 'UnsubscriptionError';
-	        this.message = errors ? errors.length + " errors occurred during unsubscription:\n" + errors.map(function (err, i) { return ((i + 1) + ") " + err.toString()); }).join('\n') : '';
-	    }
-	    return UnsubscriptionError;
-	}(Error));
-	exports.UnsubscriptionError = UnsubscriptionError;
-	//# sourceMappingURL=UnsubscriptionError.js.map
-
-/***/ },
+/* 18 */,
+/* 19 */,
+/* 20 */,
+/* 21 */,
+/* 22 */,
+/* 23 */,
+/* 24 */,
 /* 25 */,
 /* 26 */
 /***/ function(module, exports, __webpack_require__) {
