@@ -1374,6 +1374,50 @@ return /******/ (function(modules) { // webpackBootstrap
 	var reactive_object_1 = __webpack_require__(3);
 	var Rx_1 = __webpack_require__(2);
 	var collection_changed_event_args_1 = __webpack_require__(27);
+	// Array.find polyfill
+	if (!Array.prototype.find) {
+	    Array.prototype.find = function (predicate) {
+	        if (this === null) {
+	            throw new TypeError('Array.prototype.find called on null or undefined');
+	        }
+	        if (typeof predicate !== 'function') {
+	            throw new TypeError('predicate must be a function');
+	        }
+	        var list = Object(this);
+	        var length = list.length >>> 0;
+	        var thisArg = arguments[1];
+	        var value;
+	        for (var i = 0; i < length; i++) {
+	            value = list[i];
+	            if (predicate.call(thisArg, value, i, list)) {
+	                return value;
+	            }
+	        }
+	        return undefined;
+	    };
+	}
+	// Array.findIndex polyfill
+	if (!Array.prototype.findIndex) {
+	    Array.prototype.findIndex = function (predicate) {
+	        if (this === null) {
+	            throw new TypeError('Array.prototype.findIndex called on null or undefined');
+	        }
+	        if (typeof predicate !== 'function') {
+	            throw new TypeError('predicate must be a function');
+	        }
+	        var list = Object(this);
+	        var length = list.length >>> 0;
+	        var thisArg = arguments[1];
+	        var value;
+	        for (var i = 0; i < length; i++) {
+	            value = list[i];
+	            if (predicate.call(thisArg, value, i, list)) {
+	                return i;
+	            }
+	        }
+	        return -1;
+	    };
+	}
 	function _bindFunction(fn, thisArg) {
 	    var bound = fn;
 	    if (thisArg) {
@@ -1547,6 +1591,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this._array.some(function (value, index, arr) { return bound(value, index, _this); });
+	    };
+	    ReactiveArray.prototype.find = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this._array.find(function (value, index, arr) { return bound(value, index, _this); });
+	    };
+	    ReactiveArray.prototype.findIndex = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this._array.findIndex((function (value, index, arr) { return bound(value, index, _this); }));
 	    };
 	    ReactiveArray.prototype.whenAnyItem = function (property) {
 	        var derived = this.derived
@@ -1817,6 +1871,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this.parent.toObservable().map(function (arr) { return arr.some(function (value, index, arr) { return bound(value, index, _this.parent); }); });
+	    };
+	    ComputedReactiveArrayBuilder.prototype.find = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this.parent.toObservable().map(function (arr) { return arr.find(function (value, index, arr) { return bound(value, index, _this.parent); }); });
+	    };
+	    ComputedReactiveArrayBuilder.prototype.findIndex = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this.parent.toObservable().map(function (arr) { return arr.findIndex((function (value, index, arr) { return bound(value, index, _this.parent); })); });
 	    };
 	    return ComputedReactiveArrayBuilder;
 	}());

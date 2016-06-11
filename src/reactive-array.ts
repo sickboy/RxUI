@@ -3,6 +3,54 @@ import {Observable, Subject} from "rxjs/Rx";
 import {CollectionChangedEventArgs} from "./events/collection-changed-event-args";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 
+// Array.find polyfill
+if (!Array.prototype.find) {
+    Array.prototype.find = function (predicate) {
+        if (this === null) {
+            throw new TypeError('Array.prototype.find called on null or undefined');
+        }
+        if (typeof predicate !== 'function') {
+            throw new TypeError('predicate must be a function');
+        }
+        var list = Object(this);
+        var length = list.length >>> 0;
+        var thisArg = arguments[1];
+        var value;
+
+        for (var i = 0; i < length; i++) {
+            value = list[i];
+            if (predicate.call(thisArg, value, i, list)) {
+                return value;
+            }
+        }
+        return undefined;
+    };
+}
+
+// Array.findIndex polyfill
+if (!Array.prototype.findIndex) {
+    Array.prototype.findIndex = function (predicate) {
+        if (this === null) {
+            throw new TypeError('Array.prototype.findIndex called on null or undefined');
+        }
+        if (typeof predicate !== 'function') {
+            throw new TypeError('predicate must be a function');
+        }
+        var list = Object(this);
+        var length = list.length >>> 0;
+        var thisArg = arguments[1];
+        var value;
+
+        for (var i = 0; i < length; i++) {
+            value = list[i];
+            if (predicate.call(thisArg, value, i, list)) {
+                return i;
+            }
+        }
+        return -1;
+    };
+}
+
 function _bindFunction<TFunction extends Function>(fn: TFunction, thisArg: any): TFunction {
     var bound = fn;
     if (thisArg) {
@@ -158,6 +206,16 @@ export class ReactiveArray<T> extends ReactiveObject {
         return this._array.some((value, index, arr) => bound(value, index, this));
     }
 
+    public find(callback: (element: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): T {
+        var bound = _bindFunction(callback, thisArg);
+        return this._array.find((value, index, arr) => bound(value, index, this));
+    }
+
+    public findIndex(callback: (element: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): number {
+        var bound = _bindFunction(callback, thisArg);
+        return this._array.findIndex(<any>((value, index, arr) => bound(value, index, this)));
+    }
+
     public whenAnyItem<TProp>(property: (((vm: T) => TProp) | string)): Observable<PropertyChangedEventArgs<TProp>> {
         var derived = this.derived
             .filter(i => i != null)
@@ -244,8 +302,6 @@ export class ReactiveArray<T> extends ReactiveObject {
         }).join(", ");
         return `[${items}]`
     }
-
-
 }
 
 class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
@@ -444,5 +500,15 @@ export class ComputedReactiveArrayBuilder<T> {
     public some(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): Observable<boolean> {
         var bound = _bindFunction(callback, thisArg);
         return this.parent.toObservable().map(arr => arr.some((value, index, arr) => bound(value, index, this.parent)));
+    }
+
+    public find(callback: (element: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): Observable<T> {
+        var bound = _bindFunction(callback, thisArg);
+        return this.parent.toObservable().map(arr => arr.find((value, index, arr) => bound(value, index, this.parent)));
+    }
+
+    public findIndex(callback: (element: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): Observable<number> {
+        var bound = _bindFunction(callback, thisArg);
+        return this.parent.toObservable().map(arr => arr.findIndex(<any>((value, index, arr) => bound(value, index, this.parent))));
     }
 }

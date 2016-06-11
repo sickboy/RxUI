@@ -255,6 +255,30 @@ describe("ReactiveArray", () => {
             expect(result).to.be.false;
         });
     });
+    describe("#find()", () => {
+        it("should return the first element in the array that matches the given condition", () => {
+            var arr = ReactiveArray.of(0, 10, 8);
+            var result = arr.find(n => n >= 10);
+            expect(result).to.equal(10);
+        });
+        it("should return undefined if an element could not be found", () => {
+            var arr = ReactiveArray.of(0, 1, 2);
+            var result = arr.find(n => n >= 10);
+            expect(result).to.be.undefined;
+        });
+    });
+    describe("#findIndex()", () => {
+        it("should return the index of the first element in the array that matches the given condition", () => {
+            var arr = ReactiveArray.of(0, 10, 8);
+            var result = arr.findIndex(n => n >= 10);
+            expect(result).to.equal(1);
+        });
+        it("should return -1 if an element could not be found", () => {
+            var arr = ReactiveArray.of(0, 1, 2);
+            var result = arr.findIndex(n => n >= 10);
+            expect(result).to.equal(-1);
+        });
+    });
     describe("#toString()", () => {
         it("should present each of the array values surrounded by brackets", () => {
             var arr = ReactiveArray.of(undefined, "First", "Second", "Third", null);
@@ -815,6 +839,52 @@ describe("ReactiveArray", () => {
                     return n >= 10;
                 });
                 var events: boolean[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.push(9); // 4 new calls
+                expect(calls).to.equal(7);
+            });
+        });
+        describe("#find()", () => {
+            it("should produce an Observable that resolves with the results of array.find()", () => {
+                var arr = ReactiveArray.of(9, 8, 30);
+                var reduced = arr.computed.find(n => n >= 10);
+                var events: number[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.pop();
+                expect(reduced).to.be.instanceOf(Observable);
+                expect(events).to.eql([30, undefined]);
+            });
+            it("should be called for each value in the array", () => {
+                var calls = 0;
+                var arr = ReactiveArray.of(1, 2, 3); // 3 calls because they are all false
+                var reduced = arr.computed.find(n => {
+                    calls++;
+                    return n >= 10;
+                });
+                var events: number[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.push(9); // 4 new calls
+                expect(calls).to.equal(7);
+            });
+        });
+        describe("#findIndex()", () => {
+            it("should produce an Observable that resolves with the results of array.find()", () => {
+                var arr = ReactiveArray.of(9, 8, 30);
+                var reduced = arr.computed.findIndex(n => n >= 10);
+                var events: number[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.pop();
+                expect(reduced).to.be.instanceOf(Observable);
+                expect(events).to.eql([2, -1]);
+            });
+            it("should be called for each value in the array", () => {
+                var calls = 0;
+                var arr = ReactiveArray.of(1, 2, 3); // 3 calls because they are all false
+                var reduced = arr.computed.findIndex(n => {
+                    calls++;
+                    return n >= 10;
+                });
+                var events: number[] = [];
                 reduced.subscribe(n => events.push(n));
                 arr.push(9); // 4 new calls
                 expect(calls).to.equal(7);
