@@ -60,7 +60,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	__export(__webpack_require__(3));
 	__export(__webpack_require__(4));
+	__export(__webpack_require__(27));
+	__export(__webpack_require__(28));
 	__export(__webpack_require__(8));
+	__export(__webpack_require__(17));
+	__export(__webpack_require__(26));
 	__export(__webpack_require__(9));
 	__export(__webpack_require__(6));
 	//# sourceMappingURL=main.js.map
@@ -1031,6 +1035,914 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports) {
 
 	module.exports = Rx.Scheduler;
+
+/***/ },
+/* 11 */,
+/* 12 */,
+/* 13 */,
+/* 14 */,
+/* 15 */,
+/* 16 */,
+/* 17 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var Subscription_1 = __webpack_require__(18);
+	/**
+	 * Defines a class that represents an interaction.
+	 * Interactions are designed to provide a means of resolving view-specific input mechanisms that occur
+	 * during an operation that a ReactiveObject is performing.
+	 */
+	var ReactiveInteraction = (function () {
+	    function ReactiveInteraction() {
+	        this._handlerChain = [];
+	    }
+	    /**
+	     * Adds the given handler to the beginning of the handler chain for this interaction and returns
+	     * a subscription that, when unsubscribed from, removes the handler from the handler chain.
+	     * @param handler The function that can handle the interaction.
+	     */
+	    ReactiveInteraction.prototype.registerHandler = function (handler) {
+	        var _this = this;
+	        if (!handler)
+	            throw Error("Null or undefined handlers cannot be registered. Pass in a valid handler function to properly register it.");
+	        this._handlerChain.unshift(handler);
+	        return new Subscription_1.Subscription(function () {
+	            var index = _this._handlerChain.indexOf(handler);
+	            if (index >= 0) {
+	                _this._handlerChain.splice(index, 1);
+	            }
+	        });
+	    };
+	    /**
+	     * Attempts to handle an interaction. Returns a promise that represents the async operation.
+	     * By default, handlers are called from most recently registered to least recently registered.
+	     * If a handler returns (note that if the handler resolves a promise with undefined, that will be used as the output) undefined, then the next handler in line is called.
+	     * If a handler errors, then the entire chain errors and the error is surfaced through the returned promise.
+	     * @param param The input that should be provided to the handler.
+	     */
+	    ReactiveInteraction.prototype.handle = function (param) {
+	        var _this = this;
+	        return new Promise(function (resolve, reject) {
+	            var currentHandler = 0;
+	            do {
+	                var handler = _this._handlerChain[currentHandler];
+	                try {
+	                    var result = handler(param);
+	                    if (typeof result !== "undefined") {
+	                        if (result instanceof Promise) {
+	                            result.then(function (value) {
+	                                resolve(value);
+	                            }, function (err) {
+	                                reject(err);
+	                            });
+	                        }
+	                        else {
+	                            resolve(result);
+	                        }
+	                        return;
+	                    }
+	                }
+	                catch (err) {
+	                    reject(err);
+	                }
+	            } while (++currentHandler < _this._handlerChain.length);
+	            reject(new Error("No handler handled the interaction. Make sure that registerHandler is being called and that its returned subscription is not being disposed."));
+	        });
+	    };
+	    return ReactiveInteraction;
+	}());
+	exports.ReactiveInteraction = ReactiveInteraction;
+	//# sourceMappingURL=reactive-interaction.js.map
+
+/***/ },
+/* 18 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var isArray_1 = __webpack_require__(19);
+	var isObject_1 = __webpack_require__(20);
+	var isFunction_1 = __webpack_require__(21);
+	var tryCatch_1 = __webpack_require__(22);
+	var errorObject_1 = __webpack_require__(23);
+	var UnsubscriptionError_1 = __webpack_require__(24);
+	/**
+	 * Represents a disposable resource, such as the execution of an Observable. A
+	 * Subscription has one important method, `unsubscribe`, that takes no argument
+	 * and just disposes the resource held by the subscription.
+	 *
+	 * Additionally, subscriptions may be grouped together through the `add()`
+	 * method, which will attach a child Subscription to the current Subscription.
+	 * When a Subscription is unsubscribed, all its children (and its grandchildren)
+	 * will be unsubscribed as well.
+	 *
+	 * @class Subscription
+	 */
+	var Subscription = (function () {
+	    /**
+	     * @param {function(): void} [unsubscribe] A function describing how to
+	     * perform the disposal of resources when the `unsubscribe` method is called.
+	     */
+	    function Subscription(unsubscribe) {
+	        /**
+	         * A flag to indicate whether this Subscription has already been unsubscribed.
+	         * @type {boolean}
+	         */
+	        this.isUnsubscribed = false;
+	        if (unsubscribe) {
+	            this._unsubscribe = unsubscribe;
+	        }
+	    }
+	    /**
+	     * Disposes the resources held by the subscription. May, for instance, cancel
+	     * an ongoing Observable execution or cancel any other type of work that
+	     * started when the Subscription was created.
+	     * @return {void}
+	     */
+	    Subscription.prototype.unsubscribe = function () {
+	        var hasErrors = false;
+	        var errors;
+	        if (this.isUnsubscribed) {
+	            return;
+	        }
+	        this.isUnsubscribed = true;
+	        var _a = this, _unsubscribe = _a._unsubscribe, _subscriptions = _a._subscriptions;
+	        this._subscriptions = null;
+	        if (isFunction_1.isFunction(_unsubscribe)) {
+	            var trial = tryCatch_1.tryCatch(_unsubscribe).call(this);
+	            if (trial === errorObject_1.errorObject) {
+	                hasErrors = true;
+	                (errors = errors || []).push(errorObject_1.errorObject.e);
+	            }
+	        }
+	        if (isArray_1.isArray(_subscriptions)) {
+	            var index = -1;
+	            var len = _subscriptions.length;
+	            while (++index < len) {
+	                var sub = _subscriptions[index];
+	                if (isObject_1.isObject(sub)) {
+	                    var trial = tryCatch_1.tryCatch(sub.unsubscribe).call(sub);
+	                    if (trial === errorObject_1.errorObject) {
+	                        hasErrors = true;
+	                        errors = errors || [];
+	                        var err = errorObject_1.errorObject.e;
+	                        if (err instanceof UnsubscriptionError_1.UnsubscriptionError) {
+	                            errors = errors.concat(err.errors);
+	                        }
+	                        else {
+	                            errors.push(err);
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	        if (hasErrors) {
+	            throw new UnsubscriptionError_1.UnsubscriptionError(errors);
+	        }
+	    };
+	    /**
+	     * Adds a tear down to be called during the unsubscribe() of this
+	     * Subscription.
+	     *
+	     * If the tear down being added is a subscription that is already
+	     * unsubscribed, is the same reference `add` is being called on, or is
+	     * `Subscription.EMPTY`, it will not be added.
+	     *
+	     * If this subscription is already in an `isUnsubscribed` state, the passed
+	     * tear down logic will be executed immediately.
+	     *
+	     * @param {TeardownLogic} teardown The additional logic to execute on
+	     * teardown.
+	     * @return {Subscription} Returns the Subscription used or created to be
+	     * added to the inner subscriptions list. This Subscription can be used with
+	     * `remove()` to remove the passed teardown logic from the inner subscriptions
+	     * list.
+	     */
+	    Subscription.prototype.add = function (teardown) {
+	        if (!teardown || (teardown === this) || (teardown === Subscription.EMPTY)) {
+	            return;
+	        }
+	        var sub = teardown;
+	        switch (typeof teardown) {
+	            case 'function':
+	                sub = new Subscription(teardown);
+	            case 'object':
+	                if (sub.isUnsubscribed || typeof sub.unsubscribe !== 'function') {
+	                    break;
+	                }
+	                else if (this.isUnsubscribed) {
+	                    sub.unsubscribe();
+	                }
+	                else {
+	                    (this._subscriptions || (this._subscriptions = [])).push(sub);
+	                }
+	                break;
+	            default:
+	                throw new Error('Unrecognized teardown ' + teardown + ' added to Subscription.');
+	        }
+	        return sub;
+	    };
+	    /**
+	     * Removes a Subscription from the internal list of subscriptions that will
+	     * unsubscribe during the unsubscribe process of this Subscription.
+	     * @param {Subscription} subscription The subscription to remove.
+	     * @return {void}
+	     */
+	    Subscription.prototype.remove = function (subscription) {
+	        // HACK: This might be redundant because of the logic in `add()`
+	        if (subscription == null || (subscription === this) || (subscription === Subscription.EMPTY)) {
+	            return;
+	        }
+	        var subscriptions = this._subscriptions;
+	        if (subscriptions) {
+	            var subscriptionIndex = subscriptions.indexOf(subscription);
+	            if (subscriptionIndex !== -1) {
+	                subscriptions.splice(subscriptionIndex, 1);
+	            }
+	        }
+	    };
+	    Subscription.EMPTY = (function (empty) {
+	        empty.isUnsubscribed = true;
+	        return empty;
+	    }(new Subscription()));
+	    return Subscription;
+	}());
+	exports.Subscription = Subscription;
+	//# sourceMappingURL=Subscription.js.map
+
+/***/ },
+/* 19 */
+/***/ function(module, exports) {
+
+	"use strict";
+	exports.isArray = Array.isArray || (function (x) { return x && typeof x.length === 'number'; });
+	//# sourceMappingURL=isArray.js.map
+
+/***/ },
+/* 20 */
+/***/ function(module, exports) {
+
+	"use strict";
+	function isObject(x) {
+	    return x != null && typeof x === 'object';
+	}
+	exports.isObject = isObject;
+	//# sourceMappingURL=isObject.js.map
+
+/***/ },
+/* 21 */
+/***/ function(module, exports) {
+
+	"use strict";
+	function isFunction(x) {
+	    return typeof x === 'function';
+	}
+	exports.isFunction = isFunction;
+	//# sourceMappingURL=isFunction.js.map
+
+/***/ },
+/* 22 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var errorObject_1 = __webpack_require__(23);
+	var tryCatchTarget;
+	function tryCatcher() {
+	    try {
+	        return tryCatchTarget.apply(this, arguments);
+	    }
+	    catch (e) {
+	        errorObject_1.errorObject.e = e;
+	        return errorObject_1.errorObject;
+	    }
+	}
+	function tryCatch(fn) {
+	    tryCatchTarget = fn;
+	    return tryCatcher;
+	}
+	exports.tryCatch = tryCatch;
+	;
+	//# sourceMappingURL=tryCatch.js.map
+
+/***/ },
+/* 23 */
+/***/ function(module, exports) {
+
+	"use strict";
+	// typeof any so that it we don't have to cast when comparing a result to the error object
+	exports.errorObject = { e: {} };
+	//# sourceMappingURL=errorObject.js.map
+
+/***/ },
+/* 24 */
+/***/ function(module, exports) {
+
+	"use strict";
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	/**
+	 * An error thrown when one or more errors have occurred during the
+	 * `unsubscribe` of a {@link Subscription}.
+	 */
+	var UnsubscriptionError = (function (_super) {
+	    __extends(UnsubscriptionError, _super);
+	    function UnsubscriptionError(errors) {
+	        _super.call(this);
+	        this.errors = errors;
+	        this.name = 'UnsubscriptionError';
+	        this.message = errors ? errors.length + " errors occurred during unsubscription:\n" + errors.map(function (err, i) { return ((i + 1) + ") " + err.toString()); }).join('\n') : '';
+	    }
+	    return UnsubscriptionError;
+	}(Error));
+	exports.UnsubscriptionError = UnsubscriptionError;
+	//# sourceMappingURL=UnsubscriptionError.js.map
+
+/***/ },
+/* 25 */,
+/* 26 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var reactive_object_1 = __webpack_require__(3);
+	var Rx_1 = __webpack_require__(2);
+	var collection_changed_event_args_1 = __webpack_require__(27);
+	// Array.find polyfill
+	if (!Array.prototype.find) {
+	    Array.prototype.find = function (predicate) {
+	        if (this === null) {
+	            throw new TypeError('Array.prototype.find called on null or undefined');
+	        }
+	        if (typeof predicate !== 'function') {
+	            throw new TypeError('predicate must be a function');
+	        }
+	        var list = Object(this);
+	        var length = list.length >>> 0;
+	        var thisArg = arguments[1];
+	        var value;
+	        for (var i = 0; i < length; i++) {
+	            value = list[i];
+	            if (predicate.call(thisArg, value, i, list)) {
+	                return value;
+	            }
+	        }
+	        return undefined;
+	    };
+	}
+	// Array.findIndex polyfill
+	if (!Array.prototype.findIndex) {
+	    Array.prototype.findIndex = function (predicate) {
+	        if (this === null) {
+	            throw new TypeError('Array.prototype.findIndex called on null or undefined');
+	        }
+	        if (typeof predicate !== 'function') {
+	            throw new TypeError('predicate must be a function');
+	        }
+	        var list = Object(this);
+	        var length = list.length >>> 0;
+	        var thisArg = arguments[1];
+	        var value;
+	        for (var i = 0; i < length; i++) {
+	            value = list[i];
+	            if (predicate.call(thisArg, value, i, list)) {
+	                return i;
+	            }
+	        }
+	        return -1;
+	    };
+	}
+	function _bindFunction(fn, thisArg) {
+	    var bound = fn;
+	    if (thisArg) {
+	        bound = fn.bind(thisArg);
+	    }
+	    return bound;
+	}
+	var ReactiveArray = (function (_super) {
+	    __extends(ReactiveArray, _super);
+	    function ReactiveArray(arr) {
+	        _super.call(this);
+	        this._changed = new Rx_1.Subject();
+	        var copied = arr ? arr.slice() : [];
+	        if (Array.isArray(copied)) {
+	            this._array = copied;
+	        }
+	        else {
+	            this._array = copied._array;
+	        }
+	    }
+	    ReactiveArray.prototype.emitArrayChanges = function (addStartIndex, addedItems, deleteStartIndex, deletedItems) {
+	        if (addedItems.length > 0 || deletedItems.length > 0) {
+	            var e = new collection_changed_event_args_1.CollectionChangedEventArgs(this);
+	            e.addedItems = addedItems.slice();
+	            e.addedItemsIndex = addStartIndex;
+	            e.removedItems = deletedItems.slice();
+	            e.removedItemsIndex = deleteStartIndex;
+	            this._changed.next(e);
+	        }
+	    };
+	    Object.defineProperty(ReactiveArray.prototype, "changed", {
+	        get: function () {
+	            return this._changed.asObservable();
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(ReactiveArray.prototype, "itemsAdded", {
+	        get: function () {
+	            return this.changed.filter(function (e) { return e.addedItems.length > 0; });
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(ReactiveArray.prototype, "itemsRemoved", {
+	        get: function () {
+	            return this.changed.filter(function (e) { return e.removedItems.length > 0; });
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    ReactiveArray.prototype.getItem = function (index) {
+	        return this._array[index];
+	    };
+	    ReactiveArray.prototype.setItem = function (index, value) {
+	        this._array[index] = value;
+	    };
+	    ReactiveArray.prototype.unshift = function () {
+	        var _this = this;
+	        var values = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            values[_i - 0] = arguments[_i];
+	        }
+	        this.trackPropertyChanges("length", function () {
+	            (_a = _this._array).unshift.apply(_a, values);
+	            _this.emitArrayChanges(0, values, 0, []);
+	            var _a;
+	        });
+	    };
+	    ReactiveArray.prototype.shift = function () {
+	        var _this = this;
+	        return this.trackPropertyChanges("length", function () {
+	            var removed = _this._array.shift();
+	            if (typeof removed !== "undefined") {
+	                _this.emitArrayChanges(0, [], 0, [removed]);
+	            }
+	            return removed;
+	        });
+	    };
+	    ReactiveArray.prototype.push = function () {
+	        var _this = this;
+	        var values = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            values[_i - 0] = arguments[_i];
+	        }
+	        this.trackPropertyChanges("length", function () {
+	            (_a = _this._array).push.apply(_a, values);
+	            _this.emitArrayChanges(_this._array.length - values.length, values, 0, []);
+	            var _a;
+	        });
+	    };
+	    ReactiveArray.prototype.pop = function () {
+	        var _this = this;
+	        return this.trackPropertyChanges("length", function () {
+	            var removed = _this._array.pop();
+	            if (typeof removed !== "undefined") {
+	                _this.emitArrayChanges(0, [], _this._array.length, [removed]);
+	            }
+	            return removed;
+	        });
+	    };
+	    Object.defineProperty(ReactiveArray.prototype, "length", {
+	        get: function () {
+	            return this._array.length;
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    ReactiveArray.prototype.slice = function (start, end) {
+	        return new ReactiveArray(this._array.slice(start, end));
+	    };
+	    ReactiveArray.prototype.splice = function (start, deleteCount) {
+	        var _this = this;
+	        var items = [];
+	        for (var _i = 2; _i < arguments.length; _i++) {
+	            items[_i - 2] = arguments[_i];
+	        }
+	        return this.trackPropertyChanges("length", function () {
+	            var deleted = (_a = _this._array).splice.apply(_a, [start, deleteCount].concat(items));
+	            _this.emitArrayChanges(start, items, start, deleted);
+	            return ReactiveArray.from(deleted);
+	            var _a;
+	        });
+	    };
+	    ReactiveArray.prototype.sort = function (compareFunction) {
+	        var newArr = new ReactiveArray();
+	        newArr._array = this._array.sort(compareFunction);
+	        return newArr;
+	    };
+	    ReactiveArray.prototype.map = function (callback, thisArg) {
+	        var _this = this;
+	        var newArr = new ReactiveArray();
+	        var bound = _bindFunction(callback, thisArg);
+	        newArr._array = this._array.map(function (value, index, arr) { return bound(value, index, _this); });
+	        return newArr;
+	    };
+	    ReactiveArray.prototype.filter = function (callback, thisArg) {
+	        var _this = this;
+	        var newArr = new ReactiveArray();
+	        var bound = _bindFunction(callback, thisArg);
+	        newArr._array = this._array.filter(function (value, index, arr) { return bound(value, index, _this); });
+	        return newArr;
+	    };
+	    ReactiveArray.prototype.indexOf = function (value, fromIndex) {
+	        return this._array.indexOf(value, fromIndex);
+	    };
+	    ReactiveArray.prototype.lastIndexOf = function (value, fromIndex) {
+	        if (fromIndex === void 0) { fromIndex = this.length - 1; }
+	        return this._array.lastIndexOf(value, fromIndex);
+	    };
+	    ReactiveArray.prototype.forEach = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        this._array.forEach(function (value, index, arr) { return bound(value, index, _this); });
+	    };
+	    ReactiveArray.prototype.reduce = function (callback, initialValue) {
+	        var _this = this;
+	        if (typeof initialValue !== "undefined") {
+	            return this._array.reduce(function (prev, current, index) { return callback(prev, current, index, _this); }, initialValue);
+	        }
+	        else {
+	            return this._array.reduce(function (prev, current, index) { return callback(prev, current, index, _this); });
+	        }
+	    };
+	    ReactiveArray.prototype.every = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this._array.every(function (value, index, arr) { return bound(value, index, _this); });
+	    };
+	    ReactiveArray.prototype.some = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this._array.some(function (value, index, arr) { return bound(value, index, _this); });
+	    };
+	    ReactiveArray.prototype.find = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this._array.find(function (value, index, arr) { return bound(value, index, _this); });
+	    };
+	    ReactiveArray.prototype.findIndex = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this._array.findIndex((function (value, index, arr) { return bound(value, index, _this); }));
+	    };
+	    ReactiveArray.prototype.whenAnyItem = function (property) {
+	        var derived = this.derived
+	            .filter(function (i) { return i != null; })
+	            .map(function (i) {
+	            var obj = i;
+	            var when = obj.whenAny(property);
+	            // unique behavior to get the first element to be emitted
+	            // but never re-emitted when resubscribed to.
+	            return when.publish().refCount();
+	        })
+	            .build();
+	        return derived
+	            .toObservable()
+	            .map(function (o) { return Rx_1.Observable.merge.apply(Rx_1.Observable, o); })
+	            .switch()
+	            .distinct(); // May be a performance hit for long running sequences.
+	    };
+	    ReactiveArray.prototype.whenAnyItemValue = function (property) {
+	        return this.whenAnyItem(property).map(function (e) { return e.newPropertyValue; });
+	    };
+	    ReactiveArray.prototype.whenAnyItemObservable = function (property) {
+	        return this.whenAnyItemValue(property).filter(function (o) { return o != null; }).mergeAll();
+	    };
+	    Object.defineProperty(ReactiveArray.prototype, "derived", {
+	        get: function () {
+	            return new DerivedReactiveArrayBuilder(this);
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(ReactiveArray.prototype, "computed", {
+	        get: function () {
+	            return new ComputedReactiveArrayBuilder(this);
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    ReactiveArray.from = function (arr) {
+	        return new ReactiveArray(arr);
+	    };
+	    ReactiveArray.of = function () {
+	        var values = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            values[_i - 0] = arguments[_i];
+	        }
+	        return ReactiveArray.from(values);
+	    };
+	    ReactiveArray.prototype.toArray = function () {
+	        return this._array.slice();
+	    };
+	    /**
+	     * Converts this reactive array into an observable stream that contains
+	     * the snapshots of this array's values.
+	     */
+	    ReactiveArray.prototype.toObservable = function () {
+	        var _this = this;
+	        return this.changed.map(function (e) { return _this.toArray(); })
+	            .startWith(this.toArray())
+	            .publishReplay(1)
+	            .refCount();
+	    };
+	    ReactiveArray.prototype.toJSON = function () {
+	        return this.map(function (v) {
+	            if (typeof v === "undefined" || v === null) {
+	                return null;
+	            }
+	            else if (typeof v.toJSON === "function") {
+	                return v.toJSON();
+	            }
+	            else {
+	                return v;
+	            }
+	        }).toArray();
+	    };
+	    ReactiveArray.prototype.toString = function () {
+	        var items = this._array.map(function (i) {
+	            var type = typeof i;
+	            if (type === "undefined") {
+	                return "undefined";
+	            }
+	            else if (i === null) {
+	                return "null";
+	            }
+	            else if (type === "string") {
+	                return "'" + i + "'";
+	            }
+	            else {
+	                return i.toString();
+	            }
+	        }).join(", ");
+	        return "[" + items + "]";
+	    };
+	    return ReactiveArray;
+	}(reactive_object_1.ReactiveObject));
+	exports.ReactiveArray = ReactiveArray;
+	var DerivedReactiveArray = (function (_super) {
+	    __extends(DerivedReactiveArray, _super);
+	    function DerivedReactiveArray(parent, eventSteps, arraySteps) {
+	        var _this = this;
+	        _super.call(this);
+	        this.parent = parent;
+	        this.eventSteps = eventSteps;
+	        this.arraySteps = arraySteps;
+	        this._trackedItems = [];
+	        var e = new collection_changed_event_args_1.CollectionChangedEventArgs(this);
+	        e.addedItems = parent.toArray();
+	        e.addedItemsIndex = 0;
+	        e.movedItems = [];
+	        e.removedItems = [];
+	        e.removedItemsIndex = 0;
+	        this._apply(e);
+	        parent.changed.subscribe(function (e) {
+	            _this._apply(e);
+	        });
+	    }
+	    DerivedReactiveArray.prototype.splice = function (start, deleteCount) {
+	        var items = [];
+	        for (var _i = 2; _i < arguments.length; _i++) {
+	            items[_i - 2] = arguments[_i];
+	        }
+	        return DerivedReactiveArray._throwNotSupported();
+	    };
+	    DerivedReactiveArray.prototype.push = function () {
+	        var items = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            items[_i - 0] = arguments[_i];
+	        }
+	        DerivedReactiveArray._throwNotSupported();
+	    };
+	    DerivedReactiveArray.prototype.pop = function () {
+	        return DerivedReactiveArray._throwNotSupported();
+	    };
+	    DerivedReactiveArray.prototype.shift = function () {
+	        return DerivedReactiveArray._throwNotSupported();
+	    };
+	    DerivedReactiveArray.prototype.unshift = function () {
+	        var values = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            values[_i - 0] = arguments[_i];
+	        }
+	        return DerivedReactiveArray._throwNotSupported();
+	    };
+	    DerivedReactiveArray.prototype.setItem = function (index, value) {
+	        DerivedReactiveArray._throwNotSupported();
+	    };
+	    DerivedReactiveArray._throwNotSupported = function () {
+	        throw new Error("Derived arrays do not support modification. If you want support for two-way derived arrays, file an issue at https://github.com/KallynGowdy/RxUI/issues.");
+	    };
+	    DerivedReactiveArray.prototype._apply = function (event) {
+	        var addedItems = [];
+	        for (var c = 0; c < event.addedItems.length; c++) {
+	            var item = event.addedItems[c];
+	            var result = {
+	                keep: true,
+	                value: item
+	            };
+	            for (var i = 0; i < this.eventSteps.length; i++) {
+	                result = this.eventSteps[i].transform(result.value, c, event.addedItems);
+	                if (result.keep === false) {
+	                    break;
+	                }
+	            }
+	            addedItems.push(result);
+	        }
+	        var currentArr = this._trackedItems;
+	        currentArr.splice.apply(currentArr, [event.addedItemsIndex, 0].concat(addedItems));
+	        currentArr.splice(event.removedItemsIndex, event.removedItems.length);
+	        var finalArr = currentArr.filter(function (t) { return t.keep; }).map(function (t) { return t.value; });
+	        var final = DerivedReactiveArray._transformArray(finalArr, this.arraySteps);
+	        _super.prototype.splice.apply(this, [0, this.length].concat(final));
+	    };
+	    /**
+	     * Runs the given transform result through each of the defined steps in this object
+	     * and returns the result.
+	     */
+	    DerivedReactiveArray._transformArray = function (initial, steps) {
+	        var current = initial;
+	        for (var i = 0; i < steps.length; i++) {
+	            current = steps[i].transform(current);
+	        }
+	        return current;
+	    };
+	    return DerivedReactiveArray;
+	}(ReactiveArray));
+	var FilterTransform = (function () {
+	    function FilterTransform(predicate) {
+	        this.predicate = predicate;
+	    }
+	    FilterTransform.prototype.transform = function (value, index, arr) {
+	        return {
+	            value: value,
+	            keep: this.predicate(value, index, arr)
+	        };
+	    };
+	    return FilterTransform;
+	}());
+	var MapTransform = (function () {
+	    function MapTransform(map) {
+	        this.map = map;
+	    }
+	    MapTransform.prototype.transform = function (value, index, arr) {
+	        return {
+	            value: this.map(value, index, arr),
+	            keep: true
+	        };
+	    };
+	    return MapTransform;
+	}());
+	var SortTransform = (function () {
+	    function SortTransform(compareFunction) {
+	        this.compareFunction = compareFunction;
+	    }
+	    SortTransform.prototype.transform = function (current) {
+	        return current.sort(this.compareFunction);
+	    };
+	    return SortTransform;
+	}());
+	/**
+	 * Defines a class that acts as a builder for derived reactive arrays.
+	 */
+	var DerivedReactiveArrayBuilder = (function () {
+	    function DerivedReactiveArrayBuilder(parent) {
+	        this.parent = parent;
+	        this.eventSteps = [];
+	        this.arraySteps = [];
+	    }
+	    DerivedReactiveArrayBuilder.prototype.addEvent = function (transform) {
+	        this.eventSteps.push(transform);
+	        return this;
+	    };
+	    DerivedReactiveArrayBuilder.prototype.addArray = function (transform) {
+	        this.arraySteps.push(transform);
+	        return this;
+	    };
+	    DerivedReactiveArrayBuilder.prototype.filter = function (predicate) {
+	        return this.addEvent(new FilterTransform(predicate));
+	    };
+	    DerivedReactiveArrayBuilder.prototype.map = function (transform) {
+	        return this.addEvent(new MapTransform(transform));
+	    };
+	    DerivedReactiveArrayBuilder.prototype.sort = function (compareFunction) {
+	        return this.addArray(new SortTransform(compareFunction));
+	    };
+	    DerivedReactiveArrayBuilder.prototype.build = function () {
+	        return new DerivedReactiveArray(this.parent, this.eventSteps, this.arraySteps);
+	    };
+	    return DerivedReactiveArrayBuilder;
+	}());
+	exports.DerivedReactiveArrayBuilder = DerivedReactiveArrayBuilder;
+	/**
+	 * Defines a class that acts as a builder for computed observables that are based on an array.
+	 */
+	var ComputedReactiveArrayBuilder = (function () {
+	    function ComputedReactiveArrayBuilder(parent) {
+	        this.parent = parent;
+	    }
+	    ComputedReactiveArrayBuilder.prototype.reduce = function (callback, initialValue) {
+	        var _this = this;
+	        return this.parent.toObservable().map(function (arr) { return arr.reduce(function (prev, current, index, arr) { return callback(prev, current, index, _this.parent); }, initialValue); });
+	    };
+	    ComputedReactiveArrayBuilder.prototype.every = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this.parent.toObservable().map(function (arr) { return arr.every(function (value, index, arr) { return bound(value, index, _this.parent); }); });
+	    };
+	    ComputedReactiveArrayBuilder.prototype.some = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this.parent.toObservable().map(function (arr) { return arr.some(function (value, index, arr) { return bound(value, index, _this.parent); }); });
+	    };
+	    ComputedReactiveArrayBuilder.prototype.find = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this.parent.toObservable().map(function (arr) { return arr.find(function (value, index, arr) { return bound(value, index, _this.parent); }); });
+	    };
+	    ComputedReactiveArrayBuilder.prototype.findIndex = function (callback, thisArg) {
+	        var _this = this;
+	        var bound = _bindFunction(callback, thisArg);
+	        return this.parent.toObservable().map(function (arr) { return arr.findIndex((function (value, index, arr) { return bound(value, index, _this.parent); })); });
+	    };
+	    return ComputedReactiveArrayBuilder;
+	}());
+	exports.ComputedReactiveArrayBuilder = ComputedReactiveArrayBuilder;
+	//# sourceMappingURL=reactive-array.js.map
+
+/***/ },
+/* 27 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var event_args_1 = __webpack_require__(5);
+	/**
+	 * Defines a class that represents the values that changed in a collection.
+	 */
+	var CollectionChangedEventArgs = (function (_super) {
+	    __extends(CollectionChangedEventArgs, _super);
+	    function CollectionChangedEventArgs(sender) {
+	        _super.call(this, sender);
+	    }
+	    return CollectionChangedEventArgs;
+	}(event_args_1.EventArgs));
+	exports.CollectionChangedEventArgs = CollectionChangedEventArgs;
+	//# sourceMappingURL=collection-changed-event-args.js.map
+
+/***/ },
+/* 28 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var __extends = (this && this.__extends) || function (d, b) {
+	    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+	    function __() { this.constructor = d; }
+	    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+	};
+	var event_args_1 = __webpack_require__(5);
+	/**
+	 * Defines a class that represents event arguments for an item that was moved.
+	 */
+	var MovedItemEventArgs = (function (_super) {
+	    __extends(MovedItemEventArgs, _super);
+	    function MovedItemEventArgs(item, before, after) {
+	        _super.call(this, item);
+	        this.beforeIndex = before;
+	        this.afterIndex = after;
+	    }
+	    Object.defineProperty(MovedItemEventArgs.prototype, "item", {
+	        get: function () {
+	            return this.sender;
+	        },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    return MovedItemEventArgs;
+	}(event_args_1.EventArgs));
+	exports.MovedItemEventArgs = MovedItemEventArgs;
+	//# sourceMappingURL=moved-item-event-args.js.map
 
 /***/ }
 /******/ ])
