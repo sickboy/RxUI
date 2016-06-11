@@ -3,6 +3,14 @@ import {Observable, Subject} from "rxjs/Rx";
 import {CollectionChangedEventArgs} from "./events/collection-changed-event-args";
 import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 
+function _bindFunction<TFunction extends Function>(fn: TFunction, thisArg: any): TFunction {
+    var bound = fn;
+    if (thisArg) {
+        bound = fn.bind(thisArg);
+    }
+    return bound;
+}
+
 export class ReactiveArray<T> extends ReactiveObject {
     private _array: T[];
     private _changed: Subject<CollectionChangedEventArgs<T>>;
@@ -107,20 +115,14 @@ export class ReactiveArray<T> extends ReactiveObject {
 
     public map<TNew>(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => TNew, thisArg?: any): ReactiveArray<TNew> {
         var newArr = new ReactiveArray<TNew>();
-        var bound = callback;
-        if (thisArg) {
-            bound = callback.bind(thisArg);
-        }
+        var bound = _bindFunction(callback, thisArg);
         newArr._array = this._array.map((value, index, arr) => bound(value, index, this));
         return newArr;
     }
 
     public filter(callback: (value: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): ReactiveArray<T> {
         var newArr = new ReactiveArray<T>();
-        var bound = callback;
-        if (thisArg) {
-            bound = callback.bind(thisArg);
-        }
+        var bound = _bindFunction(callback, thisArg);
         newArr._array = this._array.filter((value, index, arr) => bound(value, index, this));
         return newArr;
     }
@@ -134,10 +136,7 @@ export class ReactiveArray<T> extends ReactiveObject {
     }
 
     public forEach(callback: (value: T, index?: number, array?: ReactiveArray<T>) => void, thisArg?: any): void {
-        var bound = callback;
-        if (thisArg) {
-            bound = callback.bind(thisArg);
-        }
+        var bound = _bindFunction(callback, thisArg);
         this._array.forEach((value, index, arr) => bound(value, index, this));
     }
 
@@ -147,6 +146,16 @@ export class ReactiveArray<T> extends ReactiveObject {
         } else {
             return this._array.reduce((prev, current, index) => callback(prev, current, index, this));
         }
+    }
+
+    public every(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): boolean {
+        var bound = _bindFunction(callback, thisArg);
+        return this._array.every((value, index, arr) => bound(value, index, this));
+    }
+
+    public some(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): boolean {
+        var bound = _bindFunction(callback, thisArg);
+        return this._array.some((value, index, arr) => bound(value, index, this));
     }
 
     public whenAnyItem<TProp>(property: (((vm: T) => TProp) | string)): Observable<PropertyChangedEventArgs<TProp>> {
@@ -179,6 +188,10 @@ export class ReactiveArray<T> extends ReactiveObject {
 
     public get derived(): DerivedReactiveArrayBuilder<T> {
         return new DerivedReactiveArrayBuilder(this);
+    }
+
+    public get computed(): ComputedReactiveArrayBuilder<T> {
+        return new ComputedReactiveArrayBuilder(this);
     }
 
     public static from<T>(arr: T[] | ReactiveArray<T>): ReactiveArray<T> {
@@ -231,6 +244,8 @@ export class ReactiveArray<T> extends ReactiveObject {
         }).join(", ");
         return `[${items}]`
     }
+
+
 }
 
 class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
@@ -252,30 +267,30 @@ class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
     }
 
     public splice(start: number, deleteCount: number, ...items: TOut[]): ReactiveArray<TOut> {
-        return DerivedReactiveArray.throwNotSupported();
+        return DerivedReactiveArray._throwNotSupported();
     }
 
     public push(...items: TOut[]): void {
-        DerivedReactiveArray.throwNotSupported();
+        DerivedReactiveArray._throwNotSupported();
     }
 
     public pop(): TOut {
-        return DerivedReactiveArray.throwNotSupported();
+        return DerivedReactiveArray._throwNotSupported();
     }
 
     public shift(): TOut {
-        return DerivedReactiveArray.throwNotSupported();
+        return DerivedReactiveArray._throwNotSupported();
     }
 
     public unshift(...values: TOut[]): void {
-        return DerivedReactiveArray.throwNotSupported();
+        return DerivedReactiveArray._throwNotSupported();
     }
 
     public setItem(index: number, value: TOut): void {
-        DerivedReactiveArray.throwNotSupported();
+        DerivedReactiveArray._throwNotSupported();
     }
 
-    private static throwNotSupported(): any {
+    private static _throwNotSupported(): any {
         throw new Error("Derived arrays do not support modification. If you want support for two-way derived arrays, file an issue at https://github.com/KallynGowdy/RxUI/issues.");
     }
 
@@ -405,5 +420,29 @@ export class DerivedReactiveArrayBuilder<T> {
 
     public build(): ReactiveArray<T> {
         return new DerivedReactiveArray<any, T>(this.parent, this.eventSteps, this.arraySteps);
+    }
+}
+
+/**
+ * Defines a class that acts as a builder for computed observables that are based on an array.
+ */
+export class ComputedReactiveArrayBuilder<T> {
+    private parent: ReactiveArray<T>;
+    constructor(parent: ReactiveArray<T>) {
+        this.parent = parent;
+    }
+
+    public reduce(callback: (previousValue: T, currentValue: T, currentIndex: number, arr: ReactiveArray<T>) => T, initialValue?: T): Observable<T> {
+        return this.parent.toObservable().map(arr => arr.reduce((prev, current, index, arr) => callback(prev, current, index, this.parent), initialValue));
+    }
+
+    public every(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): Observable<boolean> {
+        var bound = _bindFunction(callback, thisArg);
+        return this.parent.toObservable().map(arr => arr.every((value, index, arr) => bound(value, index, this.parent)));
+    }
+
+    public some(callback: (currentValue: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): Observable<boolean> {
+        var bound = _bindFunction(callback, thisArg);
+        return this.parent.toObservable().map(arr => arr.some((value, index, arr) => bound(value, index, this.parent)));
     }
 }

@@ -209,7 +209,7 @@ describe("ReactiveArray", () => {
             expect(index).to.equal(-1);
         });
     });
-    describe("#reduce", () => {
+    describe("#reduce()", () => {
         it("should produce a single value from the array", () => {
             var arr = ReactiveArray.of(10, 10, 10);
             var result = arr.reduce((a, b) => a + b);
@@ -219,6 +219,40 @@ describe("ReactiveArray", () => {
             var arr = ReactiveArray.of(10);
             var result = arr.reduce((a, b) => a + b);
             expect(result).to.equal(10);
+        });
+    });
+    describe("#every()", () => {
+        it("should should return true if the given condition is true for every element", () => {
+            var arr = ReactiveArray.of(10, 15, 20);
+            var result = arr.every(n => n >= 10);
+            expect(result).to.be.true;
+        });
+        it("should should return false if the given condition is not true for every element", () => {
+            var arr = ReactiveArray.of(9, 15, 20);
+            var result = arr.every(n => n >= 10);
+            expect(result).to.be.false;
+        });
+        it("should return true when no elements are in the array", () => {
+            var arr = new ReactiveArray<number>();
+            var result = arr.every(n => n >= 10);
+            expect(result).to.be.true;
+        });
+    });
+    describe("#some()", () => {
+        it("should should return true if the given condition is true for any element", () => {
+            var arr = ReactiveArray.of(9, 10, 8);
+            var result = arr.some(n => n >= 10);
+            expect(result).to.be.true;
+        });
+        it("should should return false if the given condition is not true for any element", () => {
+            var arr = ReactiveArray.of(9, 7, 6);
+            var result = arr.some(n => n >= 10);
+            expect(result).to.be.false;
+        });
+        it("should return false when no elements are in the array", () => {
+            var arr = new ReactiveArray<number>();
+            var result = arr.some(n => n >= 10);
+            expect(result).to.be.false;
         });
     });
     describe("#toString()", () => {
@@ -402,7 +436,7 @@ describe("ReactiveArray", () => {
             obj2Subject.next("Second");
             expect(events).to.eql(["First", "Second"]);
             obj1.set("observable", Observable.of("Other"));
-            expect(events).to.eql(["First", "Second", "Other"]);                     
+            expect(events).to.eql(["First", "Second", "Other"]);
         });
         it("should resolve when an observable from an added item resolves", () => {
             var obj1 = new ReactiveObject();
@@ -426,7 +460,7 @@ describe("ReactiveArray", () => {
             obj1.set("observable", Observable.of("Other"));
             expect(events).to.eql(["First", "Second", "Great!", "Other"]);
         });
-    }); 
+    });
     describe("#itemsAdded", () => {
         it("should resolve after #push() has been called", () => {
             var arr = ReactiveArray.of("Value");
@@ -713,6 +747,77 @@ describe("ReactiveArray", () => {
                 expect(second.getItem(1)).to.equal("B");
                 expect(second.getItem(2)).to.equal("C");
                 expect(second.getItem(3)).to.equal("Q");
+            });
+        });
+    });
+    describe("#computed", () => {
+        describe("#reduce()", () => {
+            it("should produce an Observable that resolves with the results of array.reduce()", () => {
+                var arr = ReactiveArray.of(10, 20, 30);
+                var reduced = arr.computed.reduce((a, b) => a + b, 0);
+                var events: number[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.pop();
+                expect(reduced).to.be.instanceOf(Observable);
+                expect(events).to.eql([60, 30]);
+            });
+            it("should be called for each value in the array", () => {
+                var calls = 0;
+                var arr = ReactiveArray.of(10, 20, 30); // 3 calls
+                var reduced = arr.computed.reduce((a, b) => {
+                    calls++;
+                    return a + b
+                }, 0);
+                var events: number[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.pop(); // 2 new calls
+                expect(calls).to.equal(5);
+            });
+        });
+        describe("#every()", () => {
+            it("should produce an Observable that resolves with the results of array.every()", () => {
+                var arr = ReactiveArray.of(10, 20, 30);
+                var reduced = arr.computed.every(n => n >= 10);
+                var events: boolean[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.push(9);
+                expect(reduced).to.be.instanceOf(Observable);
+                expect(events).to.eql([true, false]);
+            });
+            it("should be called for each value in the array", () => {
+                var calls = 0;
+                var arr = ReactiveArray.of(10, 20, 30); // 3 calls
+                var reduced = arr.computed.every(n => {
+                    calls++;
+                    return n >= 10;
+                });
+                var events: boolean[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.push(9); // 4 new calls
+                expect(calls).to.equal(7);
+            });
+        });
+        describe("#some()", () => {
+            it("should produce an Observable that resolves with the results of array.some()", () => {
+                var arr = ReactiveArray.of(9, 8, 30);
+                var reduced = arr.computed.some(n => n >= 10);
+                var events: boolean[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.pop();
+                expect(reduced).to.be.instanceOf(Observable);
+                expect(events).to.eql([true, false]);
+            });
+            it("should be called for each value in the array", () => {
+                var calls = 0;
+                var arr = ReactiveArray.of(1, 2, 3); // 3 calls because they are all false
+                var reduced = arr.computed.some(n => {
+                    calls++;
+                    return n >= 10;
+                });
+                var events: boolean[] = [];
+                reduced.subscribe(n => events.push(n));
+                arr.push(9); // 4 new calls
+                expect(calls).to.equal(7);
             });
         });
     });
