@@ -20,9 +20,8 @@ npm install rxui --save
 ### TypeScript (Recommended)
 
 ```TypeScript
-import {ReactiveObject} from "rxui/reactive-object";
-import {ReactiveCommand} from "rxui/reactive-command";
-import {Observable} from "rxjs/Observable";
+import {ReactiveObject, ReactiveCommand} from "rxui";
+import {Observable} from "rxjs/Rx";
 
 // Example from ReactiveUI Documentation (http://docs.reactiveui.net/en/user-guide/commands/an-example.html)
 class LoginViewModel extends ReactiveObject {
