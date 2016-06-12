@@ -1180,8 +1180,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    return bound;
 	}
+	/**
+	 * Defines a class that provides powerful observable functionality
+	 * around a traditional array.
+	 */
 	var ReactiveArray = (function (_super) {
 	    __extends(ReactiveArray, _super);
+	    /**
+	     * Creates a new ReactiveArray.
+	     * Optionally copies the values from the given array.
+	     * @param arr The array that should be used to create this array.
+	     */
 	    function ReactiveArray(arr) {
 	        _super.call(this);
 	        this._changed = new Rx_1.Subject();
@@ -1204,6 +1213,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    };
 	    Object.defineProperty(ReactiveArray.prototype, "changed", {
+	        /**
+	         * Gets an observable that resolves whenever the array changes.
+	         * Note that changes are only observed for the ReactiveArray itself.
+	         * This means that only operations such as push(), pop(), splice(), shift(), and unshift()
+	         * emit changed() events.
+	         */
 	        get: function () {
 	            return this._changed.asObservable();
 	        },
@@ -1211,6 +1226,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        configurable: true
 	    });
 	    Object.defineProperty(ReactiveArray.prototype, "itemsAdded", {
+	        /**
+	         * Gets an observable that resolves whenever a new item is added to the array.
+	         */
 	        get: function () {
 	            return this.changed.filter(function (e) { return e.addedItems.length > 0; });
 	        },
@@ -1218,18 +1236,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	        configurable: true
 	    });
 	    Object.defineProperty(ReactiveArray.prototype, "itemsRemoved", {
+	        /**
+	         * Gets an observable that resolves whenever a item is removed from the array.
+	         */
 	        get: function () {
 	            return this.changed.filter(function (e) { return e.removedItems.length > 0; });
 	        },
 	        enumerable: true,
 	        configurable: true
 	    });
+	    /**
+	     * Gets the item at the given index in the array.
+	     */
 	    ReactiveArray.prototype.getItem = function (index) {
 	        return this._array[index];
 	    };
+	    /**
+	     * Sets the value of the given index to the given item in the array.
+	     */
 	    ReactiveArray.prototype.setItem = function (index, value) {
 	        this._array[index] = value;
 	    };
+	    /**
+	     * Adds each of the given arguments to the beginning of this array.
+	     * @param values The values that should be added to the array.
+	     */
 	    ReactiveArray.prototype.unshift = function () {
 	        var _this = this;
 	        var values = [];
@@ -1242,6 +1273,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var _a;
 	        });
 	    };
+	    /**
+	     * Removes a single item from the beginning of this array and returns it.
+	     */
 	    ReactiveArray.prototype.shift = function () {
 	        var _this = this;
 	        return this.trackPropertyChanges("length", function () {
@@ -1252,6 +1286,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	            return removed;
 	        });
 	    };
+	    /**
+	     * Adds each of the given arguments to the end of this array.
+	     * @param values The values that should be added to the array.
+	     */
 	    ReactiveArray.prototype.push = function () {
 	        var _this = this;
 	        var values = [];
@@ -1264,6 +1302,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var _a;
 	        });
 	    };
+	    /**
+	     * Removes a single item from the end of this array and returns it.
+	     */
 	    ReactiveArray.prototype.pop = function () {
 	        var _this = this;
 	        return this.trackPropertyChanges("length", function () {
@@ -1275,15 +1316,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 	    };
 	    Object.defineProperty(ReactiveArray.prototype, "length", {
+	        /**
+	         * Gets the number of items that are currently stored in the array.
+	         */
 	        get: function () {
 	            return this._array.length;
 	        },
 	        enumerable: true,
 	        configurable: true
 	    });
+	    /**
+	     * Creates a new ReactiveArray from the given subset of this array.
+	     * @param start If specified, marks the index of the first element that should be included in the new array.
+	     * @param end If specified, marks the index of the last element that should be included in the new array.
+	     */
 	    ReactiveArray.prototype.slice = function (start, end) {
 	        return new ReactiveArray(this._array.slice(start, end));
 	    };
+	    /**
+	     * Changes the contents of this array by removing a specified number of elements
+	     * at the given index, and optionally inserting any number of items in their place.
+	     * @param start The index that the array should be changed at.
+	     * @param deleteCount The number of items that should be deleted from the start index.
+	     * @param items The items that should be inserted at the start index.
+	     */
 	    ReactiveArray.prototype.splice = function (start, deleteCount) {
 	        var _this = this;
 	        var items = [];
@@ -1297,11 +1353,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var _a;
 	        });
 	    };
+	    /**
+	     * Sorts the array, optionally using the given comparator to determin the sort order of each element, and returns
+	     * a new ReactiveArray that represents the reorded items.
+	     * @param compareFunction If specified, determines the relative sort order between two given elements in the array.
+	     *                        If omitted, elements are sorted by the sort order of the numerical representation of their toString() unicode code points.
+	     */
 	    ReactiveArray.prototype.sort = function (compareFunction) {
 	        var newArr = new ReactiveArray();
 	        newArr._array = this._array.sort(compareFunction);
 	        return newArr;
 	    };
+	    /**
+	     * Produces a new ReactiveArray from this array where each element from this array has been transformed by the given callback function.
+	     * elements.
+	     * @param callback A function that, given an element, index, and the containing array, produces a new value for the element at that index.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ReactiveArray.prototype.map = function (callback, thisArg) {
 	        var _this = this;
 	        var newArr = new ReactiveArray();
@@ -1309,6 +1377,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        newArr._array = this._array.map(function (value, index, arr) { return bound(value, index, _this); });
 	        return newArr;
 	    };
+	    /**
+	     * Produces a new ReactiveArray from this array where only elements that passed the given predicate callback function from this array
+	     * are included in the new array.
+	     * @param callback A function that, given an element, index, and the containing array, produces `true` if the value should be included
+	     *                 in the new array, or `false` if it should be omitted.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ReactiveArray.prototype.filter = function (callback, thisArg) {
 	        var _this = this;
 	        var newArr = new ReactiveArray();
@@ -1316,18 +1391,40 @@ return /******/ (function(modules) { // webpackBootstrap
 	        newArr._array = this._array.filter(function (value, index, arr) { return bound(value, index, _this); });
 	        return newArr;
 	    };
+	    /**
+	     * Returns the index of the first element in this array that equals the given value.
+	     * Returns -1 if no element in the array equals the given value.
+	     * @param value The value that the array should be searched for.
+	     * @param fromIndex Optional. The lower-bound index that the search should begin from.
+	     */
 	    ReactiveArray.prototype.indexOf = function (value, fromIndex) {
 	        return this._array.indexOf(value, fromIndex);
 	    };
+	    /**
+	     * Returns the index of the last element in this array that equals the given value.
+	     * Returns -1 if no element in the array equals the given value.
+	     * @param value The value that the array should be searched for.
+	     * @param fromIndex The upper-bound index that the search should begin from.
+	     */
 	    ReactiveArray.prototype.lastIndexOf = function (value, fromIndex) {
 	        if (fromIndex === void 0) { fromIndex = this.length - 1; }
 	        return this._array.lastIndexOf(value, fromIndex);
 	    };
+	    /**
+	     * Iterates over each of the elements in this array and executes the given callback function on each of them.
+	     * @param callback A function that, given an element, index, and the containing array, performs an operation.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ReactiveArray.prototype.forEach = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        this._array.forEach(function (value, index, arr) { return bound(value, index, _this); });
 	    };
+	    /**
+	     * Applies the given accumulator callback function across each of the elements in the array and returns the final value from the chain.
+	     * @param callback A function that, given two values, index and the containing array, produces a value.
+	     * @param initialValue Optional. The value that should be used as the `previousValue` in the given callback function for the first index.
+	     */
 	    ReactiveArray.prototype.reduce = function (callback, initialValue) {
 	        var _this = this;
 	        if (typeof initialValue !== "undefined") {
@@ -1337,26 +1434,53 @@ return /******/ (function(modules) { // webpackBootstrap
 	            return this._array.reduce(function (prev, current, index) { return callback(prev, current, index, _this); });
 	        }
 	    };
+	    /**
+	     * Determines whether every value in the array passes the given predicate callback function.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ReactiveArray.prototype.every = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this._array.every(function (value, index, arr) { return bound(value, index, _this); });
 	    };
+	    /**
+	     * Determines whether at least one value in the array passes the given predicate callback function.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ReactiveArray.prototype.some = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this._array.some(function (value, index, arr) { return bound(value, index, _this); });
 	    };
+	    /**
+	     * Returns the first element in the array that passes the given predicate callback function.
+	     * If no element passes the callback, undefined is returned.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ReactiveArray.prototype.find = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this._array.find(function (value, index, arr) { return bound(value, index, _this); });
 	    };
+	    /**
+	     * Returns the index of the first element in the array that passes the given predicate callback function.
+	     * If no element passes the callback, -1 is returned.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ReactiveArray.prototype.findIndex = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this._array.findIndex((function (value, index, arr) { return bound(value, index, _this); }));
 	    };
+	    /**
+	     * Gets a cold observable that resolves with the PropertyChangedEventArgs of any item in the array when
+	     * the specified property changes any item.
+	     * @param property The name of the property that should be watched on each item in the array.
+	     */
 	    ReactiveArray.prototype.whenAnyItem = function (property) {
 	        var derived = this.derived
 	            .filter(function (i) { return i != null; })
@@ -1374,13 +1498,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	            .switch()
 	            .distinct(); // May be a performance hit for long running sequences.
 	    };
+	    /**
+	     * Gets a cold observable that resolves with the specified property value of any item in the array when
+	     * the property changes on any item.
+	     * @param property The name of the property that should be watched on each item in the array.
+	     */
 	    ReactiveArray.prototype.whenAnyItemValue = function (property) {
 	        return this.whenAnyItem(property).map(function (e) { return e.newPropertyValue; });
 	    };
+	    /**
+	     * Gets a cold observable that resolves with the values from the observables from the specified property
+	     * on all of the items in the array.
+	     * @param properth The name of the property that should be watched.
+	     */
 	    ReactiveArray.prototype.whenAnyItemObservable = function (property) {
 	        return this.whenAnyItemValue(property).filter(function (o) { return o != null; }).mergeAll();
 	    };
 	    Object.defineProperty(ReactiveArray.prototype, "derived", {
+	        /**
+	         * Gets a new builder object that can be used to create a child array from this array that tracks the changes made to this array.
+	         */
 	        get: function () {
 	            return new DerivedReactiveArrayBuilder(this);
 	        },
@@ -1388,15 +1525,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	        configurable: true
 	    });
 	    Object.defineProperty(ReactiveArray.prototype, "computed", {
+	        /**
+	         * Gets a new builder object that can be used to create an observable that calculates a single value
+	         * from this array.
+	         */
 	        get: function () {
 	            return new ComputedReactiveArrayBuilder(this);
 	        },
 	        enumerable: true,
 	        configurable: true
 	    });
+	    /**
+	     * Creates a new ReactiveArray from the given array.
+	     * @param arr The array that should be converted into a ReactiveArray.
+	     */
 	    ReactiveArray.from = function (arr) {
 	        return new ReactiveArray(arr);
 	    };
+	    /**
+	     * Creates a new ReactiveArray from the given arguments.
+	     * @param values The values that should be in the array.
+	     */
 	    ReactiveArray.of = function () {
 	        var values = [];
 	        for (var _i = 0; _i < arguments.length; _i++) {
@@ -1404,6 +1553,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        return ReactiveArray.from(values);
 	    };
+	    /**
+	     * Converts this ReactiveArray into a traditional JavaScript array object.
+	     */
 	    ReactiveArray.prototype.toArray = function () {
 	        return this._array.slice();
 	    };
@@ -1418,6 +1570,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            .publishReplay(1)
 	            .refCount();
 	    };
+	    /**
+	     * Gets the JSON object that represents the values in this array.
+	     */
 	    ReactiveArray.prototype.toJSON = function () {
 	        return this.map(function (v) {
 	            if (typeof v === "undefined" || v === null) {
@@ -1431,6 +1586,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }
 	        }).toArray();
 	    };
+	    /**
+	     * Gets the string representation of this ReactiveArray.
+	     */
 	    ReactiveArray.prototype.toString = function () {
 	        var items = this._array.map(function (i) {
 	            var type = typeof i;
@@ -1591,15 +1749,33 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.arraySteps.push(transform);
 	        return this;
 	    };
+	    /**
+	     * Filters elements from the parent array so that only elements that pass the given
+	     * predicate function will appear in the child array.
+	     * @param A function that, given an element, index, and containing array, returns whether the value should be piped to the child array.
+	     */
 	    DerivedReactiveArrayBuilder.prototype.filter = function (predicate) {
 	        return this.addEvent(new FilterTransform(predicate));
 	    };
+	    /**
+	     * Transforms elements from the parent array into the child array.
+	     * @param A function that, given an element, index, and containing array, returns the value that should be piped to the child array.
+	     */
 	    DerivedReactiveArrayBuilder.prototype.map = function (transform) {
 	        return this.addEvent(new MapTransform(transform));
 	    };
+	    /**
+	     * Sorts the child array whenever a change is piped from the parent array into it.
+	     * @param compareFunction Optional. A function that, given two values, returns the relative sort order of those two values.
+	     *                        If omitted, the values will be sorted according to the default Array.prototype.sort() behavior.
+	     */
 	    DerivedReactiveArrayBuilder.prototype.sort = function (compareFunction) {
 	        return this.addArray(new SortTransform(compareFunction));
 	    };
+	    /**
+	     * Creates a new child array according to the rules previously defined with this builder object and returns it.
+	     * Currently, derived reactive arrays do not support direct modification via push(), pop(), splice(), etc.
+	     */
 	    DerivedReactiveArrayBuilder.prototype.build = function () {
 	        return new DerivedReactiveArray(this.parent, this.eventSteps, this.arraySteps);
 	    };
@@ -1613,25 +1789,57 @@ return /******/ (function(modules) { // webpackBootstrap
 	    function ComputedReactiveArrayBuilder(parent) {
 	        this.parent = parent;
 	    }
+	    /**
+	     * Applies the given accumulator callback function whenever a change is observed in the array
+	     * and pipes the resulting values via the returned observable object.
+	     * @param callback A function that, given two values, index and the containing array, produces a value.
+	     * @param initialValue Optional. The value that should be used as the `previousValue` in the given callback function for the first index.
+	     */
 	    ComputedReactiveArrayBuilder.prototype.reduce = function (callback, initialValue) {
 	        var _this = this;
 	        return this.parent.toObservable().map(function (arr) { return arr.reduce(function (prev, current, index, arr) { return callback(prev, current, index, _this.parent); }, initialValue); });
 	    };
+	    /**
+	     * Determines whether every element in the array passes the given predicate function whenever a change is observed in the array
+	     * and pipes the resulting values via the the returned observable object.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ComputedReactiveArrayBuilder.prototype.every = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this.parent.toObservable().map(function (arr) { return arr.every(function (value, index, arr) { return bound(value, index, _this.parent); }); });
 	    };
+	    /**
+	     * Determines whether at least one value in the array passes the given predicate callback function whenever a change is observed in the array
+	     * and pipes the resulting values via the returned observable object.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ComputedReactiveArrayBuilder.prototype.some = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this.parent.toObservable().map(function (arr) { return arr.some(function (value, index, arr) { return bound(value, index, _this.parent); }); });
 	    };
+	    /**
+	     * Returns the first element in the array that passes the given predicate callback function whenever a change is observed in the array
+	     * and pipes the resulting values via the returned observable object.
+	     * If no element passes the callback, undefined is returned.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ComputedReactiveArrayBuilder.prototype.find = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
 	        return this.parent.toObservable().map(function (arr) { return arr.find(function (value, index, arr) { return bound(value, index, _this.parent); }); });
 	    };
+	    /**
+	     * Returns the index of the first element in the array that passes the given predicate callback function whenever a change is observed
+	     * in the array and pipes the resulting values via the returned observable object.
+	     * If no element passes the callback, -1 is returned.
+	     * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
+	     * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
+	     */
 	    ComputedReactiveArrayBuilder.prototype.findIndex = function (callback, thisArg) {
 	        var _this = this;
 	        var bound = _bindFunction(callback, thisArg);
