@@ -60,11 +60,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	__export(__webpack_require__(3));
 	__export(__webpack_require__(4));
-	__export(__webpack_require__(27));
-	__export(__webpack_require__(28));
+	__export(__webpack_require__(20));
+	__export(__webpack_require__(21));
 	__export(__webpack_require__(8));
 	__export(__webpack_require__(17));
-	__export(__webpack_require__(26));
+	__export(__webpack_require__(19));
 	__export(__webpack_require__(9));
 	__export(__webpack_require__(6));
 	//# sourceMappingURL=main.js.map
@@ -1117,14 +1117,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 18 */,
-/* 19 */,
-/* 20 */,
-/* 21 */,
-/* 22 */,
-/* 23 */,
-/* 24 */,
-/* 25 */,
-/* 26 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -1135,7 +1128,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	var reactive_object_1 = __webpack_require__(3);
 	var Rx_1 = __webpack_require__(2);
-	var collection_changed_event_args_1 = __webpack_require__(27);
+	var collection_changed_event_args_1 = __webpack_require__(20);
 	// Array.find polyfill
 	if (!Array.prototype.find) {
 	    Array.prototype.find = function (predicate) {
@@ -1650,7 +1643,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=reactive-array.js.map
 
 /***/ },
-/* 27 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -1674,7 +1667,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=collection-changed-event-args.js.map
 
 /***/ },
-/* 28 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";

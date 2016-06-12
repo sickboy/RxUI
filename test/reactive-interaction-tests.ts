@@ -1,6 +1,6 @@
 import {ReactiveInteraction} from "../src/reactive-interaction";
 import {expect} from "chai";
-import {Subscription} from "rxjs/Subscription";
+import {Subscription} from "rxjs/Rx";
 
 describe("ReactiveInteraction", () => {
     describe("#registerHandler(handler)", () => {
