@@ -689,6 +689,63 @@ describe("ReactiveArray", () => {
             expect(second.getItem(3)).to.equal(9);
             expect(second.getItem(4)).to.equal(10);
         });
+        describe("#whenAnyItem()", () => {
+            it("should re-evaluate items that change for the given property", () => {
+                var obj1 = new ReactiveObject();
+                var obj2 = new ReactiveObject();
+                var first = ReactiveArray.of(obj1, obj2);
+                var second = first.derived.whenAnyItem("prop")
+                    .filter(o => o.get("prop") === "Hello, World!").build();
+
+                expect(second.length).to.equal(0);
+                obj1.set("prop", "Hello, World!");
+                expect(second.length).to.equal(1);
+                expect(second.getItem(0)).to.equal(obj1);
+            });
+            it("should be able to be called multiple times", () => {
+                var obj1 = new ReactiveObject();
+                var obj2 = new ReactiveObject();
+                var first = ReactiveArray.of(obj1, obj2);
+                var second = first.derived
+                    .whenAnyItem("prop1")
+                    .whenAnyItem("prop2")
+                    .filter(o => o.get("prop1") === "Hello, World!" && o.get("prop2") !== null).build();
+
+                expect(second.length).to.equal(0);
+                obj1.set("prop1", "Hello, World!");
+                expect(second.length).to.equal(0);
+                obj1.set("prop2", "Not Null");
+                expect(second.getItem(0)).to.equal(obj1);
+            });
+            it("should accept multiple parameters", () => {
+                var obj1 = new ReactiveObject();
+                var obj2 = new ReactiveObject();
+                var first = ReactiveArray.of(obj1, obj2);
+                var second = first.derived
+                    .whenAnyItem("prop1", "prop2")
+                    .filter(o => o.get("prop1") === "Hello, World!" && o.get("prop2") !== null).build();
+
+                expect(second.length).to.equal(0);
+                obj1.set("prop1", "Hello, World!");
+                expect(second.length).to.equal(0);
+                obj1.set("prop2", "Not Null");
+                expect(second.getItem(0)).to.equal(obj1);
+            });
+        });
+        describe("#whenAnyItemProperty", () => {
+            it("should re-evaluate items that change", () => {
+                var obj1 = new ReactiveObject();
+                var obj2 = new ReactiveObject();
+                var first = ReactiveArray.of(obj1, obj2);
+                var second = first.derived.whenAnyItemProperty()
+                    .filter(o => o.get("prop") === "Hello, World!").build();
+
+                expect(second.length).to.equal(0);
+                obj1.set("prop", "Hello, World!");
+                expect(second.length).to.equal(1);
+                expect(second.getItem(0)).to.equal(obj1);
+            });
+        });
         describe("#filter()", () => {
             it("should produce a ReactiveArray that only contains items that match the predicate", () => {
                 var first = ReactiveArray.of("Hello", "World");

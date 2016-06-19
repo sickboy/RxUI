@@ -1,7 +1,6 @@
 import {EventArgs} from "./event-args";
 import {MovedItemEventArgs} from "./moved-item-event-args";
 
-
 /**
  * Defines a class that represents the values that changed in a collection.
  */
@@ -9,6 +8,11 @@ export class CollectionChangedEventArgs<T> extends EventArgs {
 
     constructor(sender: any) {
         super(sender);
+        this.addedItems = [];
+        this.addedItemsIndex = -1;
+        this.removedItems = [];
+        this.removedItemsIndex = -1;
+        this.movedItems = [];
     }
 
     /**

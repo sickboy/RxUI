@@ -350,9 +350,27 @@ export class ReactiveArray<T> extends ReactiveObject {
                 // unique behavior to get the first element to be emitted
                 // but never re-emitted when resubscribed to.
                 return when.publish().refCount();
-            })
-            .build();
+            }).build();
 
+        return derived
+            .toObservable()
+            .map(o => Observable.merge(...o))
+            .switch()
+            .distinct(); // May be a performance hit for long running sequences.
+    }
+
+    /**
+     * Gets a cold observable that resolves when any property on any item in the array
+     * changes.
+     */
+    public whenAnyItemProperty(): Observable<PropertyChangedEventArgs<any>> {
+        var derived = this.derived
+            .filter(i => i != null)
+            .map(i => {
+                var obj = (<ReactiveObject><any>i);
+                var when = obj.propertyChanged;
+                return when.publish().refCount();
+            }).build();
         return derived
             .toObservable()
             .map(o => Observable.merge(...o))
@@ -465,7 +483,7 @@ export class ReactiveArray<T> extends ReactiveObject {
 class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
     private _trackedItems: TransformResult[];
 
-    constructor(private parent: ReactiveArray<TIn>, private eventSteps: BuilderItemTransform[], private arraySteps: BuilderArrayTransform[]) {
+    constructor(private parent: ReactiveArray<TIn>, private triggers: Observable<CollectionChangedEventArgs<TIn>>[], private eventSteps: BuilderItemTransform[], private arraySteps: BuilderArrayTransform[]) {
         super();
         this._trackedItems = [];
         var e = new CollectionChangedEventArgs<TIn>(this);
@@ -475,7 +493,7 @@ class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
         e.removedItems = [];
         e.removedItemsIndex = 0;
         this._apply(e);
-        parent.changed.subscribe(e => {
+        Observable.merge(parent.changed, ...triggers).subscribe(e => {
             this._apply(e);
         });
     }
@@ -508,25 +526,30 @@ class DerivedReactiveArray<TIn, TOut> extends ReactiveArray<TOut> {
         throw new Error("Derived arrays do not support modification. If you want support for two-way derived arrays, file an issue at https://github.com/KallynGowdy/RxUI/issues.");
     }
 
+    private _applyItem(item: TIn, index: number, arr: TIn[]): TransformResult {
+        var result: TransformResult = {
+            keep: true,
+            value: item
+        };
+        for (var i = 0; i < this.eventSteps.length; i++) {
+            result = this.eventSteps[i].transform(result.value, index, arr);
+            if (result.keep === false) {
+                break;
+            }
+        }
+        return result;
+    }
+
     private _apply(event: CollectionChangedEventArgs<TIn>): void {
         var addedItems: TransformResult[] = [];
         for (var c = 0; c < event.addedItems.length; c++) {
             var item = event.addedItems[c];
-            var result: TransformResult = {
-                keep: true,
-                value: item
-            };
-            for (var i = 0; i < this.eventSteps.length; i++) {
-                result = this.eventSteps[i].transform(result.value, c, event.addedItems);
-                if (result.keep === false) {
-                    break;
-                }
-            }
+            var result = this._applyItem(item, c, event.addedItems);
             addedItems.push(result);
         }
         var currentArr = this._trackedItems;
-        currentArr.splice(event.addedItemsIndex, 0, ...addedItems);
         currentArr.splice(event.removedItemsIndex, event.removedItems.length);
+        currentArr.splice(event.addedItemsIndex, 0, ...addedItems);
         var finalArr = currentArr.filter(t => t.keep).map(t => t.value);
         var final = DerivedReactiveArray._transformArray(finalArr, this.arraySteps);
         super.splice.apply(this, [0, this.length, ...final]);
@@ -604,10 +627,12 @@ export class DerivedReactiveArrayBuilder<T> {
     private parent: ReactiveArray<T>;
     private eventSteps: BuilderItemTransform[];
     private arraySteps: BuilderArrayTransform[];
+    private triggers: Observable<CollectionChangedEventArgs<T>>[];
     constructor(parent: ReactiveArray<T>) {
         this.parent = parent;
         this.eventSteps = [];
         this.arraySteps = [];
+        this.triggers = [];
     }
 
     private addEvent<T>(transform: BuilderItemTransform): DerivedReactiveArrayBuilder<T> {
@@ -621,9 +646,60 @@ export class DerivedReactiveArrayBuilder<T> {
     }
 
     /**
+     * Instructs the child reactive array to trigger updates when one of the given properties on the parent array
+     * has changed.
+     * @param properties The list of properties that should be watched on the items in the parent array.
+     */
+    public whenAnyItem<TProp>(...properties: (string | ((obj: T) => TProp))[]): DerivedReactiveArrayBuilder<T> {
+        var mapped = Observable.merge(...properties.map(p =>
+            this.parent.whenAnyItem(p)
+                .map(e => ({
+                    sender: e.sender,
+                    propertyName: e.propertyName,
+                    newPropertyValue: e.newPropertyValue,
+                    index: this.parent.indexOf(e.sender)
+                }))));
+
+        var triggers = mapped.map(e => {
+            var args = new CollectionChangedEventArgs<T>(this);
+            args.addedItems = [e.sender];
+            args.addedItemsIndex = e.index;
+            args.removedItems = [e.sender];
+            args.removedItemsIndex = e.index;
+            return args;
+        });
+        this.triggers.push(triggers);
+        return this;
+    }
+
+    /**
+     * Instructs the child reactive array to trigger updates when any property on one of the items from the parent
+     * array has changed.
+     */
+    public whenAnyItemProperty(): DerivedReactiveArrayBuilder<T> {
+        var mapped = this.parent.whenAnyItemProperty()
+            .map(e => ({
+                sender: e.sender,
+                propertyName: e.propertyName,
+                newPropertyValue: e.newPropertyValue,
+                index: this.parent.indexOf(e.sender)
+            }));
+        var trigger = mapped.map(e => {
+            var args = new CollectionChangedEventArgs<T>(this);
+            args.addedItems = [e.sender];
+            args.addedItemsIndex = e.index;
+            args.removedItems = [e.sender];
+            args.removedItemsIndex = e.index;
+            return args;
+        });
+        this.triggers.push(trigger);
+        return this;
+    }
+
+    /**
      * Filters elements from the parent array so that only elements that pass the given
      * predicate function will appear in the child array.
-     * @param A function that, given an element, index, and containing array, returns whether the value should be piped to the child array.
+     * @param predicate A function that, given an element, index, and containing array, returns whether the value should be piped to the child array.
      */
     public filter(predicate: (value: T, index: number, arr: T[]) => boolean): DerivedReactiveArrayBuilder<T> {
         return this.addEvent<T>(new FilterTransform<T>(predicate));
@@ -631,7 +707,7 @@ export class DerivedReactiveArrayBuilder<T> {
 
     /**
      * Transforms elements from the parent array into the child array.
-     * @param A function that, given an element, index, and containing array, returns the value that should be piped to the child array.
+     * @param transform A function that, given an element, index, and containing array, returns the value that should be piped to the child array.
      */
     public map<TNew>(transform: (value: T, index: number, arr: T[]) => TNew): DerivedReactiveArrayBuilder<TNew> {
         return this.addEvent<TNew>(new MapTransform<T, TNew>(transform));
@@ -651,7 +727,7 @@ export class DerivedReactiveArrayBuilder<T> {
      * Currently, derived reactive arrays do not support direct modification via push(), pop(), splice(), etc.
      */
     public build(): ReactiveArray<T> {
-        return new DerivedReactiveArray<any, T>(this.parent, this.eventSteps, this.arraySteps);
+        return new DerivedReactiveArray<any, T>(this.parent, this.triggers, this.eventSteps, this.arraySteps);
     }
 }
 
@@ -701,7 +777,7 @@ export class ComputedReactiveArrayBuilder<T> {
      * If no element passes the callback, undefined is returned.
      * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
      * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
-     */    
+     */
     public find(callback: (element: T, index?: number, array?: ReactiveArray<T>) => boolean, thisArg?: any): Observable<T> {
         var bound = _bindFunction(callback, thisArg);
         return this.parent.toObservable().map(arr => arr.find((value, index, arr) => bound(value, index, this.parent)));

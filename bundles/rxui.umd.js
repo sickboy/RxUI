@@ -1490,8 +1490,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	            // unique behavior to get the first element to be emitted
 	            // but never re-emitted when resubscribed to.
 	            return when.publish().refCount();
-	        })
-	            .build();
+	        }).build();
+	        return derived
+	            .toObservable()
+	            .map(function (o) { return Rx_1.Observable.merge.apply(Rx_1.Observable, o); })
+	            .switch()
+	            .distinct(); // May be a performance hit for long running sequences.
+	    };
+	    /**
+	     * Gets a cold observable that resolves when any property on any item in the array
+	     * changes.
+	     */
+	    ReactiveArray.prototype.whenAnyItemProperty = function () {
+	        var derived = this.derived
+	            .filter(function (i) { return i != null; })
+	            .map(function (i) {
+	            var obj = i;
+	            var when = obj.propertyChanged;
+	            return when.publish().refCount();
+	        }).build();
 	        return derived
 	            .toObservable()
 	            .map(function (o) { return Rx_1.Observable.merge.apply(Rx_1.Observable, o); })
@@ -1612,10 +1629,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.ReactiveArray = ReactiveArray;
 	var DerivedReactiveArray = (function (_super) {
 	    __extends(DerivedReactiveArray, _super);
-	    function DerivedReactiveArray(parent, eventSteps, arraySteps) {
+	    function DerivedReactiveArray(parent, triggers, eventSteps, arraySteps) {
 	        var _this = this;
 	        _super.call(this);
 	        this.parent = parent;
+	        this.triggers = triggers;
 	        this.eventSteps = eventSteps;
 	        this.arraySteps = arraySteps;
 	        this._trackedItems = [];
@@ -1626,7 +1644,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        e.removedItems = [];
 	        e.removedItemsIndex = 0;
 	        this._apply(e);
-	        parent.changed.subscribe(function (e) {
+	        Rx_1.Observable.merge.apply(Rx_1.Observable, [parent.changed].concat(triggers)).subscribe(function (e) {
 	            _this._apply(e);
 	        });
 	    }
@@ -1663,25 +1681,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	    DerivedReactiveArray._throwNotSupported = function () {
 	        throw new Error("Derived arrays do not support modification. If you want support for two-way derived arrays, file an issue at https://github.com/KallynGowdy/RxUI/issues.");
 	    };
+	    DerivedReactiveArray.prototype._applyItem = function (item, index, arr) {
+	        var result = {
+	            keep: true,
+	            value: item
+	        };
+	        for (var i = 0; i < this.eventSteps.length; i++) {
+	            result = this.eventSteps[i].transform(result.value, index, arr);
+	            if (result.keep === false) {
+	                break;
+	            }
+	        }
+	        return result;
+	    };
 	    DerivedReactiveArray.prototype._apply = function (event) {
 	        var addedItems = [];
 	        for (var c = 0; c < event.addedItems.length; c++) {
 	            var item = event.addedItems[c];
-	            var result = {
-	                keep: true,
-	                value: item
-	            };
-	            for (var i = 0; i < this.eventSteps.length; i++) {
-	                result = this.eventSteps[i].transform(result.value, c, event.addedItems);
-	                if (result.keep === false) {
-	                    break;
-	                }
-	            }
+	            var result = this._applyItem(item, c, event.addedItems);
 	            addedItems.push(result);
 	        }
 	        var currentArr = this._trackedItems;
-	        currentArr.splice.apply(currentArr, [event.addedItemsIndex, 0].concat(addedItems));
 	        currentArr.splice(event.removedItemsIndex, event.removedItems.length);
+	        currentArr.splice.apply(currentArr, [event.addedItemsIndex, 0].concat(addedItems));
 	        var finalArr = currentArr.filter(function (t) { return t.keep; }).map(function (t) { return t.value; });
 	        var final = DerivedReactiveArray._transformArray(finalArr, this.arraySteps);
 	        _super.prototype.splice.apply(this, [0, this.length].concat(final));
@@ -1740,6 +1762,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.parent = parent;
 	        this.eventSteps = [];
 	        this.arraySteps = [];
+	        this.triggers = [];
 	    }
 	    DerivedReactiveArrayBuilder.prototype.addEvent = function (transform) {
 	        this.eventSteps.push(transform);
@@ -1750,16 +1773,71 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return this;
 	    };
 	    /**
+	     * Instructs the child reactive array to trigger updates when one of the given properties on the parent array
+	     * has changed.
+	     * @param properties The list of properties that should be watched on the items in the parent array.
+	     */
+	    DerivedReactiveArrayBuilder.prototype.whenAnyItem = function () {
+	        var _this = this;
+	        var properties = [];
+	        for (var _i = 0; _i < arguments.length; _i++) {
+	            properties[_i - 0] = arguments[_i];
+	        }
+	        var mapped = Rx_1.Observable.merge.apply(Rx_1.Observable, properties.map(function (p) {
+	            return _this.parent.whenAnyItem(p)
+	                .map(function (e) { return ({
+	                sender: e.sender,
+	                propertyName: e.propertyName,
+	                newPropertyValue: e.newPropertyValue,
+	                index: _this.parent.indexOf(e.sender)
+	            }); });
+	        }));
+	        var triggers = mapped.map(function (e) {
+	            var args = new collection_changed_event_args_1.CollectionChangedEventArgs(_this);
+	            args.addedItems = [e.sender];
+	            args.addedItemsIndex = e.index;
+	            args.removedItems = [e.sender];
+	            args.removedItemsIndex = e.index;
+	            return args;
+	        });
+	        this.triggers.push(triggers);
+	        return this;
+	    };
+	    /**
+	     * Instructs the child reactive array to trigger updates when any property on one of the items from the parent
+	     * array has changed.
+	     */
+	    DerivedReactiveArrayBuilder.prototype.whenAnyItemProperty = function () {
+	        var _this = this;
+	        var mapped = this.parent.whenAnyItemProperty()
+	            .map(function (e) { return ({
+	            sender: e.sender,
+	            propertyName: e.propertyName,
+	            newPropertyValue: e.newPropertyValue,
+	            index: _this.parent.indexOf(e.sender)
+	        }); });
+	        var trigger = mapped.map(function (e) {
+	            var args = new collection_changed_event_args_1.CollectionChangedEventArgs(_this);
+	            args.addedItems = [e.sender];
+	            args.addedItemsIndex = e.index;
+	            args.removedItems = [e.sender];
+	            args.removedItemsIndex = e.index;
+	            return args;
+	        });
+	        this.triggers.push(trigger);
+	        return this;
+	    };
+	    /**
 	     * Filters elements from the parent array so that only elements that pass the given
 	     * predicate function will appear in the child array.
-	     * @param A function that, given an element, index, and containing array, returns whether the value should be piped to the child array.
+	     * @param predicate A function that, given an element, index, and containing array, returns whether the value should be piped to the child array.
 	     */
 	    DerivedReactiveArrayBuilder.prototype.filter = function (predicate) {
 	        return this.addEvent(new FilterTransform(predicate));
 	    };
 	    /**
 	     * Transforms elements from the parent array into the child array.
-	     * @param A function that, given an element, index, and containing array, returns the value that should be piped to the child array.
+	     * @param transform A function that, given an element, index, and containing array, returns the value that should be piped to the child array.
 	     */
 	    DerivedReactiveArrayBuilder.prototype.map = function (transform) {
 	        return this.addEvent(new MapTransform(transform));
@@ -1777,7 +1855,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * Currently, derived reactive arrays do not support direct modification via push(), pop(), splice(), etc.
 	     */
 	    DerivedReactiveArrayBuilder.prototype.build = function () {
-	        return new DerivedReactiveArray(this.parent, this.eventSteps, this.arraySteps);
+	        return new DerivedReactiveArray(this.parent, this.triggers, this.eventSteps, this.arraySteps);
 	    };
 	    return DerivedReactiveArrayBuilder;
 	}());
@@ -1868,6 +1946,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    __extends(CollectionChangedEventArgs, _super);
 	    function CollectionChangedEventArgs(sender) {
 	        _super.call(this, sender);
+	        this.addedItems = [];
+	        this.addedItemsIndex = -1;
+	        this.removedItems = [];
+	        this.removedItemsIndex = -1;
+	        this.movedItems = [];
 	    }
 	    return CollectionChangedEventArgs;
 	}(event_args_1.EventArgs));
