@@ -4,7 +4,6 @@ import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
 import {IViewBindingHelper} from "./view";
-import "harmony-reflect";
 
 /**
  * Defines a class that represents a reactive object.
