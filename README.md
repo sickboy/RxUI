@@ -80,11 +80,60 @@ class LoginViewModel extends ReactiveObject {
 
 ### ES5
 
-Comming Soon!
+```javascript
+// If you decide to use ES5, you need to use traditional prototype-based inheritance.
+// Generally, you will not define your reactive objects with ES5, only consume them.
+var LoginViewModel = function() {
+    RxUI.ReactiveObject.call(this);
+    var _this = this;
+    var canLogin = this.whenAnyValue(
+        "userName",
+        "password",
+        function(userName, password) { return userName && password; }
+    );
+
+    this.loginCommand = RxUI.ReactiveCommand.createFromTask(
+        function(a) { return _this.loginAsync() },
+        canLogin
+    );
+
+    this.resetCommand = RxUI.ReactiveCommand.create(
+        function() { 
+            _this.userName = "";
+            _this.password = "";
+        });
+}
+
+LoginViewModel.prototype = Object.create(RxUI.ReactiveObject.prototype);
+LoginViewModel.prototype.constructor = LoginViewModel;
+Object.defineProperty(LoginViewModel.prototype, "userName", {
+    get: function() {
+        return this.get("userName");   
+    },
+    set: function(value) {
+        this.set("userName", value);
+    },
+    enumerable: true,
+    configurable: true
+});
+Object.defineProperty(LoginViewModel.prototype, "password", {
+    get: function() {
+        return this.get("password");   
+    },
+    set: function(value) {
+        this.set("password", value);
+    },
+    enumerable: true,
+    configurable: true
+});
+LoginViewModel.prototype.loginAsync = function() {
+    // Cool login logic
+};
+```
 
 ## Examples
 
-Check out the [examples](/examples) folder for a set of demos spanning Angular, Ember, and React, sharing the same core logic between all of them.
+Check out the [examples repo](https://github.com/KallynGowdy/RxUI-Examples) for a set of demos spanning Angular, Ember, and React, sharing the same core logic between all of them.
 
 ## Contributing
 
