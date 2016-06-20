@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("Rx"), require("null"), require("Rx.Scheduler"));
+		module.exports = factory(require("Rx"), require("Rx.Scheduler"));
 	else if(typeof define === 'function' && define.amd)
-		define(["Rx", "null", "Rx.Scheduler"], factory);
+		define(["Rx", "Rx.Scheduler"], factory);
 	else if(typeof exports === 'object')
-		exports["RxUI"] = factory(require("Rx"), require("null"), require("Rx.Scheduler"));
+		exports["RxUI"] = factory(require("Rx"), require("Rx.Scheduler"));
 	else
-		root["RxUI"] = factory(root["Rx"], root["null"], root["Rx.Scheduler"]);
-})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_7__, __WEBPACK_EXTERNAL_MODULE_10__) {
+		root["RxUI"] = factory(root["Rx"], root["Rx.Scheduler"]);
+})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_9__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -60,12 +60,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	__export(__webpack_require__(3));
 	__export(__webpack_require__(4));
-	__export(__webpack_require__(20));
-	__export(__webpack_require__(21));
-	__export(__webpack_require__(8));
-	__export(__webpack_require__(17));
 	__export(__webpack_require__(19));
-	__export(__webpack_require__(9));
+	__export(__webpack_require__(20));
+	__export(__webpack_require__(7));
+	__export(__webpack_require__(16));
+	__export(__webpack_require__(18));
+	__export(__webpack_require__(8));
 	__export(__webpack_require__(6));
 	//# sourceMappingURL=main.js.map
 
@@ -84,7 +84,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Rx_1 = __webpack_require__(2);
 	var property_changed_event_args_1 = __webpack_require__(4);
 	var invoke_command_1 = __webpack_require__(6);
-	__webpack_require__(7);
 	/**
 	 * Defines a class that represents a reactive object.
 	 * This is the base class for View Model classes, and it implements an event system that
@@ -153,7 +152,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	    };
 	    ReactiveObject.getReactiveProperty = function (obj, property) {
-	        return obj.__data[property] || null;
+	        var value = obj.__data[property];
+	        if (typeof value === "undefined") {
+	            return null;
+	        }
+	        else {
+	            return value;
+	        }
 	    };
 	    ReactiveObject.getDeepProperty = function (obj, evaluated) {
 	        var firstProp = evaluated.children[0];
@@ -213,7 +218,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var firstProp = evaluated.children[0];
 	        var otherProperties = evaluated.property.substring(firstProp.length + 1);
 	        var firstVal = ReactiveObject.get(obj, firstProp);
-	        if (firstVal != null) {
+	        if (firstVal !== null) {
 	            ReactiveObject.set(firstVal, otherProperties, value);
 	        }
 	        else {
@@ -791,17 +796,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 7 */
-/***/ function(module, exports) {
-
-	module.exports = null;
-
-/***/ },
-/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	var Rx_1 = __webpack_require__(2);
-	var rx_app_1 = __webpack_require__(9);
+	var rx_app_1 = __webpack_require__(8);
 	// Implementation mostly stolen from:
 	// https://github.com/reactiveui/ReactiveUI/blob/rxui7-master/ReactiveUI/ReactiveCommand.cs
 	// All credit goes to those creators
@@ -1007,12 +1006,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=reactive-command.js.map
 
 /***/ },
-/* 9 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	var asap_1 = __webpack_require__(10);
-	var queue_1 = __webpack_require__(10);
+	var asap_1 = __webpack_require__(9);
+	var queue_1 = __webpack_require__(9);
 	var Schedulers = {
 	    asap: asap_1.asap,
 	    queue: queue_1.queue
@@ -1031,19 +1030,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=rx-app.js.map
 
 /***/ },
-/* 10 */
+/* 9 */
 /***/ function(module, exports) {
 
 	module.exports = Rx.Scheduler;
 
 /***/ },
+/* 10 */,
 /* 11 */,
 /* 12 */,
 /* 13 */,
 /* 14 */,
 /* 15 */,
-/* 16 */,
-/* 17 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -1116,8 +1115,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=reactive-interaction.js.map
 
 /***/ },
-/* 18 */,
-/* 19 */
+/* 17 */,
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -1128,7 +1127,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	var reactive_object_1 = __webpack_require__(3);
 	var Rx_1 = __webpack_require__(2);
-	var collection_changed_event_args_1 = __webpack_require__(20);
+	var collection_changed_event_args_1 = __webpack_require__(19);
 	// Array.find polyfill
 	if (!Array.prototype.find) {
 	    Array.prototype.find = function (predicate) {
@@ -1929,7 +1928,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=reactive-array.js.map
 
 /***/ },
-/* 20 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -1958,7 +1957,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	//# sourceMappingURL=collection-changed-event-args.js.map
 
 /***/ },
-/* 21 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";

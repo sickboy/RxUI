@@ -87,7 +87,12 @@ export class ReactiveObject {
     private static getReactiveProperty<TObj, T>(
         obj: TObj,
         property: string): T | any {
-        return (<ReactiveObject><any>obj).__data[property] || null;
+        var value = (<ReactiveObject><any>obj).__data[property];
+        if(typeof value === "undefined") {
+            return null;
+        } else {
+            return value;
+        }
     }
 
     private static getDeepProperty<TObj, T>(obj: TObj, evaluated: { children: string[], property: string }): T | any {
@@ -150,7 +155,7 @@ export class ReactiveObject {
         var firstProp = evaluated.children[0];
         var otherProperties = evaluated.property.substring(firstProp.length + 1);
         var firstVal = ReactiveObject.get(obj, firstProp);
-        if (firstVal != null) {
+        if (firstVal !== null) {
             ReactiveObject.set(firstVal, otherProperties, value);
         } else {
             throw new Error("Null Reference Exception. Cannot set a child property on a null or undefined property of this object.");

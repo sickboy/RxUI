@@ -93,6 +93,25 @@ describe("ReactiveObject", () => {
 
             expect(obj.get("child.child2")).to.equal(child2);
         });
+        it("should work for falsy values", () => {
+            var values = [
+                false,
+                0,
+                "",
+                null,
+                NaN
+            ];
+            var obj: ReactiveObject = new ReactiveObject();
+
+            values.forEach(v => {
+                obj.set("prop", v);
+                if (typeof v !== "number" || !isNaN(v)) {
+                    expect(obj.get("prop")).to.equal(v);
+                } else {
+                    expect(isNaN(obj.get("prop"))).to.be.true;
+                }
+            });
+        });
     });
 
     describe("#get(prop)", () => {
