@@ -66,22 +66,7 @@ export class ReactiveObject {
     private static getSingleProperty<TObj, T>(
         obj: TObj,
         property: string): T {
-        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj))) {
-            return obj[property];
-        } else {
-            return ReactiveObject.getReactiveProperty<ReactiveObject, T>(obj, property);
-        }
-    }
-
-    private static getReactiveProperty<TObj extends ReactiveObject, T>(
-        obj: TObj,
-        property: string): T {
-        var value = this.getValue<T>(obj, property);
-        if(typeof value === "undefined") {
-            return null;
-        } else {
-            return value;
-        }
+        return obj[property];
     }
 
     private static getValue<T>(obj: ReactiveObject, property: string) {
@@ -128,7 +113,7 @@ export class ReactiveObject {
     public get<T>(property: string | ((vm: this) => T)): T {
         var evaluated = ReactiveObject.evaluateLambdaOrString(this, property);
         if (evaluated.children.length === 1) {
-            return ReactiveObject.getReactiveProperty<this, T>(this, evaluated.property);
+            return this[evaluated.property];
         } else {
             return ReactiveObject.getDeepProperty<this, T>(this, evaluated);
         }
