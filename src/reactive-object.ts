@@ -7,7 +7,7 @@ import {IViewBindingHelper} from "./view";
 
 /**
  * Defines a class that represents a reactive object.
- * This is the base class for View Model classes, and it implements an event system that 
+ * This is the base class for View Model classes, and it implements an event system that
  * allows notification of property changes, which is the basis of the observable pipeline.
  */
 export class ReactiveObject {
@@ -15,23 +15,10 @@ export class ReactiveObject {
     private _propertyChanged: Subject<PropertyChangedEventArgs<any>>;
 
     /**
-     * The property that stores all of the data stored in this object.
-     */
-    private __data: any;
-
-    /**
      * Creates a new reactive object.
      */
-    constructor(obj?: Object) {
+    constructor() {
         this._propertyChanged = new Subject<PropertyChangedEventArgs<any>>();
-        this.__data = {};
-        if (obj && typeof obj === "object") {
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    this.set(key, obj[key]);
-                }
-            }
-        }
     }
 
     /**
@@ -87,12 +74,24 @@ export class ReactiveObject {
     private static getReactiveProperty<TObj, T>(
         obj: TObj,
         property: string): T | any {
-        var value = (<ReactiveObject><any>obj).__data[property];
+        var value = this.getValue((<ReactiveObject><any>obj), property);
         if(typeof value === "undefined") {
             return null;
         } else {
             return value;
         }
+    }
+
+    private static getValue<T>(obj: ReactiveObject, property: string) {
+      return <T>obj[this.buildPropertyName(property)];
+    }
+
+    private static setValue<T>(obj: ReactiveObject, property: string, value: T) {
+      obj[this.buildPropertyName(property)] = value;
+    }
+
+    private static buildPropertyName(property: string) {
+      return `_${property}`;
     }
 
     private static getDeepProperty<TObj, T>(obj: TObj, evaluated: { children: string[], property: string }): T | any {
@@ -122,7 +121,7 @@ export class ReactiveObject {
 
     /**
      * Gets the value of the given property from this object.
-     * @param property The name of the property whose value should be retrieved. 
+     * @param property The name of the property whose value should be retrieved.
      */
     public get<T>(property: string | ((vm: this) => T)): T | any {
         var evaluated = ReactiveObject.evaluateLambdaOrString(this, property);
@@ -144,9 +143,9 @@ export class ReactiveObject {
 
     private static setReactiveProperty(obj: ReactiveObject, property: string, value: any) {
         var rObj: ReactiveObject = <any>obj;
-        var oldValue = rObj.__data[property];
+        var oldValue = this.getValue(rObj, property);
         if (value !== oldValue) {
-            rObj.__data[property] = value;
+            this.setValue(rObj, property, value);
             rObj.emitPropertyChanged(property, value);
         }
     }
@@ -235,13 +234,13 @@ export class ReactiveObject {
         // Hack the errors that null reference exceptions return to retrieve property names
         // Works in IE 9+, Chrome 35+, Firefox 30+, Safari 7+
         // This hack is needed to support lambda expressions in browsers where proxy support is
-        // not yet available. 
+        // not yet available.
         // Because lambda expressions need to represent any combination of valid property names for an object,
         // we need to be able to intercept any call to retrieve a property value.
         // In browsers that do not provide this functionality, we take advantage of the fact that error messages
-        // include property names in them. 
+        // include property names in them.
         // For example, in Chrome 50+, the following code:
-        // 
+        //
         // var myObj = null;
         // var myPropVar = myObj.myProp;
         //
@@ -250,7 +249,7 @@ export class ReactiveObject {
         // "TypeError: Cannot read property 'myProp' of null"
         //
         // As you can read, the error contains the name of the property that was attempted to be accessed, which is exactly what we want. :)
-        // The error message is mostly the same for IE and Firefox, but not for Safari, hence the second regex. 
+        // The error message is mostly the same for IE and Firefox, but not for Safari, hence the second regex.
         try {
             expr(currentObj);
         } catch (ex) {
@@ -675,7 +674,7 @@ export class ReactiveObject {
      * Binds the specified property on this object to the specified property on the given other object.
      * @param view The view whose property should be bound to one of this object's properties.
      * @param viewModelProp A function that maps this object to the property that should be bound to the view. Alternatively, a string can be used to point out the property.
-     * @param viewProp A function that maps the view to the property that should be bound to this object. Alternatively, a string can be used. 
+     * @param viewProp A function that maps the view to the property that should be bound to this object. Alternatively, a string can be used.
      * @param scheduler The scheduler that changes to the properties should be observed on.
      */
     public bindTo<TView, TViewModelProp, TViewProp>(
@@ -787,11 +786,11 @@ export class ReactiveObject {
      * Attempts to invoke the given command when the given Observable resolves with a new value.
      * The command will not be invoked unless it can execute.
      * Returns a cold Observable that resolves with the results of the executions.
-     * The returned Observable MUST be subscribed to in order for the command to execute. 
-     * 
-     * @param observable The Observable object that should be used as the trigger for the command. 
+     * The returned Observable MUST be subscribed to in order for the command to execute.
+     *
+     * @param observable The Observable object that should be used as the trigger for the command.
      *                   Additionally, if a property name is passed in, the most recent Observable stored at that property is used.
-     * @param command The ReactiveCommand object that should be executed. 
+     * @param command The ReactiveCommand object that should be executed.
      *                If a property name is passed in, the most recent command stored at that property is used.
      */
     public invokeCommandWhen<T>(observable: string | Observable<any>, command: string | ReactiveCommand<any, T>): Observable<T> {
@@ -812,7 +811,7 @@ export class ReactiveObject {
      * Returns the data that should be used to convert this reactive object into a JSON string.
      */
     public toJSON(): any {
-        return ReactiveObject.clone(this.__data);
+        return ReactiveObject.clone(this);
     }
 
     /**
@@ -820,18 +819,6 @@ export class ReactiveObject {
      */
     public toString(): string {
         return JSON.stringify(this);
-    }
-
-    /**
-     * Gets the list of enumerable property names that have been set on the given object.
-     * @param obj The object whose enumerable property names should be returned.
-     */
-    public static keys(obj: Object): string[] {
-        if (obj instanceof ReactiveObject) {
-            return Object.keys(obj.__data);
-        } else {
-            return Object.keys(obj);
-        }
     }
 
     private static clone(obj: any): any {
