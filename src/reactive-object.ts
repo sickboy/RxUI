@@ -4,6 +4,7 @@ import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
 import {IViewBindingHelper} from "./view";
+import {RxApp} from "./rx-app";
 
 /**
  * Defines a class that represents a reactive object.
@@ -77,7 +78,7 @@ export class ReactiveObject {
     private static getSingleProperty<TObj, T>(
         obj: TObj,
         property: string): T {
-        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj))) {
             return obj[property];
         } else {
             return ReactiveObject.getReactiveProperty<ReactiveObject, T>(obj, property);
@@ -134,11 +135,11 @@ export class ReactiveObject {
     }
 
     private static setSingleProperty<TObj, T>(obj: TObj, property: string, value: T) {
-        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj))) {
             obj[property] = value;
         }
         else {
-            ReactiveObject.setReactiveProperty(<ReactiveObject><any>obj, property, value);
+            ReactiveObject.setReactiveProperty(obj, property, value);
         }
     }
 
@@ -297,29 +298,28 @@ export class ReactiveObject {
     }
 
     private static whenSingleProp(obj: any, prop: string, emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
-        if (obj instanceof ReactiveObject) {
-            var reactive: ReactiveObject = <ReactiveObject>obj;
-            var observable = reactive.propertyChanged.filter(e => {
+        if (obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj)) {
+            var observable = obj.propertyChanged.filter(e => {
                 return e.propertyName == prop;
             });
             if (emitCurrentVal) {
-                return Observable.of(reactive.createPropertyChangedEventArgs(prop, reactive.get(prop))).concat(observable);
+                return Observable.of(obj.createPropertyChangedEventArgs(prop, obj.get(prop))).concat(observable);
             } else {
                 return observable;
             }
-        } else {
-            if (obj.__viewBindingHelper) {
-                var helper: IViewBindingHelper = obj.__viewBindingHelper;
-                return Observable.create((observer) => {
-                    return helper.observeProp(obj, prop, emitCurrentVal, e => {
-                        observer.next(e);
-                    });
+        } else if (obj.__viewBindingHelper || RxApp.globalViewBindingHelper) {
+            var helper = <IViewBindingHelper>obj.__viewBindingHelper || RxApp.globalViewBindingHelper;
+            return Observable.create((observer) => {
+                return helper.observeProp(obj, prop, emitCurrentVal, e => {
+                    observer.next(e);
                 });
-            } else {
-                throw new Error("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
-            }
+            });
+        } else {
+            throw new Error("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
         }
     }
+
+    private static shouldUseReactiveMode(obj) { return !obj.__overrideReactiveMode };
 
     private static whenSingle<TObj, TProp>(obj: TObj, expression: (((o: TObj) => TProp) | string), emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<TProp>> {
         var evaulatedExpression = ReactiveObject.evaluateLambdaOrString(obj, expression);
@@ -827,7 +827,7 @@ export class ReactiveObject {
      * @param obj The object whose enumerable property names should be returned.
      */
     public static keys(obj: Object): string[] {
-        if (obj instanceof ReactiveObject) {
+        if (obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj)) {
             return Object.keys(obj.__data);
         } else {
             return Object.keys(obj);
