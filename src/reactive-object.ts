@@ -4,6 +4,7 @@ import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
 import {invokeCommand} from "./operator/invoke-command";
 import {ReactiveCommand} from "./reactive-command";
 import {IViewBindingHelper} from "./view";
+import {RxApp} from "./rx-app";
 
 /**
  * Defines a class that represents a reactive object.
@@ -13,6 +14,7 @@ import {IViewBindingHelper} from "./view";
 export class ReactiveObject {
 
     private _propertyChanged: Subject<PropertyChangedEventArgs<any>>;
+    private __overrideReactiveMode = true;
 
     /**
      * Creates a new reactive object.
@@ -63,18 +65,18 @@ export class ReactiveObject {
 
     private static getSingleProperty<TObj, T>(
         obj: TObj,
-        property: string): T | any {
-        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+        property: string): T {
+        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj))) {
             return obj[property];
         } else {
-            return ReactiveObject.getReactiveProperty(obj, property);
+            return ReactiveObject.getReactiveProperty<ReactiveObject, T>(obj, property);
         }
     }
 
-    private static getReactiveProperty<TObj, T>(
+    private static getReactiveProperty<TObj extends ReactiveObject, T>(
         obj: TObj,
-        property: string): T | any {
-        var value = this.getValue((<ReactiveObject><any>obj), property);
+        property: string): T {
+        var value = this.getValue<T>(obj, property);
         if(typeof value === "undefined") {
             return null;
         } else {
@@ -94,13 +96,13 @@ export class ReactiveObject {
       return `_${property}`;
     }
 
-    private static getDeepProperty<TObj, T>(obj: TObj, evaluated: { children: string[], property: string }): T | any {
+    private static getDeepProperty<TObj, T>(obj: TObj, evaluated: { children: string[], property: string }): T {
         var firstProp = evaluated.children[0];
         var otherProperties = evaluated.property.substring(firstProp.length + 1);
         var firstVal = ReactiveObject.get(obj, firstProp);
         if (typeof firstVal !== "undefined") {
             if (firstVal !== null) {
-                return ReactiveObject.get<TObj, T>(firstVal, otherProperties);
+                return ReactiveObject.get<any, T>(firstVal, otherProperties);
             }
             else {
                 return null;
@@ -110,12 +112,12 @@ export class ReactiveObject {
         }
     }
 
-    private static get<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T)): T | any {
+    private static get<TObj, T>(obj: TObj, property: string | ((vm: TObj) => T)): T {
         var evaluated = ReactiveObject.evaluateLambdaOrString(obj, property);
         if (evaluated.children.length === 1) {
-            return ReactiveObject.getSingleProperty(obj, evaluated.property);
+            return ReactiveObject.getSingleProperty<TObj, T>(obj, evaluated.property);
         } else {
-            return ReactiveObject.getDeepProperty(obj, evaluated);
+            return ReactiveObject.getDeepProperty<TObj, T>(obj, evaluated);
         }
     }
 
@@ -123,21 +125,21 @@ export class ReactiveObject {
      * Gets the value of the given property from this object.
      * @param property The name of the property whose value should be retrieved.
      */
-    public get<T>(property: string | ((vm: this) => T)): T | any {
+    public get<T>(property: string | ((vm: this) => T)): T {
         var evaluated = ReactiveObject.evaluateLambdaOrString(this, property);
         if (evaluated.children.length === 1) {
-            return ReactiveObject.getReactiveProperty(this, evaluated.property);
+            return ReactiveObject.getReactiveProperty<this, T>(this, evaluated.property);
         } else {
-            return ReactiveObject.getDeepProperty(this, evaluated);
+            return ReactiveObject.getDeepProperty<this, T>(this, evaluated);
         }
     }
 
     private static setSingleProperty<TObj, T>(obj: TObj, property: string, value: T) {
-        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject)) {
+        if (typeof obj[property] !== "undefined" || !(obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj))) {
             obj[property] = value;
         }
         else {
-            ReactiveObject.setReactiveProperty(<ReactiveObject><any>obj, property, value);
+            ReactiveObject.setReactiveProperty(obj, property, value);
         }
     }
 
@@ -296,29 +298,28 @@ export class ReactiveObject {
     }
 
     private static whenSingleProp(obj: any, prop: string, emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<any>> {
-        if (obj instanceof ReactiveObject) {
-            var reactive: ReactiveObject = <ReactiveObject>obj;
-            var observable = reactive.propertyChanged.filter(e => {
+        if (obj instanceof ReactiveObject && this.shouldUseReactiveMode(obj)) {
+            var observable = obj.propertyChanged.filter(e => {
                 return e.propertyName == prop;
             });
             if (emitCurrentVal) {
-                return Observable.of(reactive.createPropertyChangedEventArgs(prop, reactive.get(prop))).concat(observable);
+                return Observable.of(obj.createPropertyChangedEventArgs(prop, obj.get(prop))).concat(observable);
             } else {
                 return observable;
             }
-        } else {
-            if (obj.__viewBindingHelper) {
-                var helper: IViewBindingHelper = obj.__viewBindingHelper;
-                return Observable.create((observer) => {
-                    return helper.observeProp(obj, prop, emitCurrentVal, e => {
-                        observer.next(e);
-                    });
+        } else if (obj.__viewBindingHelper || RxApp.globalViewBindingHelper) {
+            var helper = <IViewBindingHelper>obj.__viewBindingHelper || RxApp.globalViewBindingHelper;
+            return Observable.create((observer) => {
+                return helper.observeProp(obj, prop, emitCurrentVal, e => {
+                    observer.next(e);
                 });
-            } else {
-                throw new Error("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
-            }
+            });
+        } else {
+            throw new Error("Unable to bind to objects that do not inherit from ReactiveObject or provide __viewBindingHelper");
         }
     }
+
+    private static shouldUseReactiveMode(obj) { return !obj.__overrideReactiveMode };
 
     private static whenSingle<TObj, TProp>(obj: TObj, expression: (((o: TObj) => TProp) | string), emitCurrentVal: boolean = false): Observable<PropertyChangedEventArgs<TProp>> {
         var evaulatedExpression = ReactiveObject.evaluateLambdaOrString(obj, expression);
