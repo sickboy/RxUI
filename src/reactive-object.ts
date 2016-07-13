@@ -678,7 +678,7 @@ export class ReactiveObject {
      * @param viewProp A function that maps the view to the property that should be bound to this object. Alternatively, a string can be used. 
      * @param scheduler The scheduler that changes to the properties should be observed on.
      */
-    public bind<TView, TViewModelProp, TViewProp>(
+    public bindTo<TView, TViewModelProp, TViewProp>(
         view: TView,
         viewModelProp: (((o: this) => TViewModelProp) | string),
         viewProp: (((o: TView) => TViewProp) | string),
@@ -761,7 +761,7 @@ export class ReactiveObject {
      * @param view The object that the values should be piped to.
      * @param viewProp The property on the object that the values should be piped to.
      */
-    public static bindObservable<TObserved, TView, TViewProp>(
+    public static bindObservableTo<TObserved, TView, TViewProp>(
         observable: Observable<TObserved>,
         view: TView,
         viewProp: (((o: TView) => TViewProp) | string),
@@ -805,7 +805,7 @@ export class ReactiveObject {
      * @param scheduler The scheduler that should be used to observe values from the given observable.
      */
     public toProperty<TObservable, TProp>(observable: Observable<TObservable>, property: (((o: this) => TProp) | string), scheduler?: Scheduler): Subscription {
-        return ReactiveObject.bindObservable(observable, this, property, scheduler);
+        return ReactiveObject.bindObservableTo(observable, this, property, scheduler);
     }
 
     /**
