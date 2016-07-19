@@ -72,15 +72,11 @@ export class ReactiveArray<T> extends ReactiveObject {
      * Optionally copies the values from the given array.
      * @param arr The array that should be used to create this array.
      */
-    constructor(arr?: T[] | ReactiveArray<T>) {
+    constructor(arr?: T[]) {
         super();
         this._changed = new Subject<CollectionChangedEventArgs<T>>();
         var copied = arr ? arr.slice() : [];
-        if (Array.isArray(copied)) {
-            this._array = copied;
-        } else {
-            this._array = copied._array;
-        }
+        this._array = copied;
     }
 
     private emitArrayChanges(addStartIndex: number, addedItems: T[], deleteStartIndex: number, deletedItems: T[]): void {
@@ -134,7 +130,7 @@ export class ReactiveArray<T> extends ReactiveObject {
 
     /**
      * Adds each of the given arguments to the beginning of this array.
-     * @param values The values that should be added to the array. 
+     * @param values The values that should be added to the array.
      */
     public unshift(...values: T[]): void {
         this.trackPropertyChanges("length", () => {
@@ -168,7 +164,7 @@ export class ReactiveArray<T> extends ReactiveObject {
     }
 
     /**
-     * Removes a single item from the end of this array and returns it. 
+     * Removes a single item from the end of this array and returns it.
      */
     public pop(): T {
         return this.trackPropertyChanges("length", () => {
@@ -201,7 +197,7 @@ export class ReactiveArray<T> extends ReactiveObject {
      * at the given index, and optionally inserting any number of items in their place.
      * @param start The index that the array should be changed at.
      * @param deleteCount The number of items that should be deleted from the start index.
-     * @param items The items that should be inserted at the start index.  
+     * @param items The items that should be inserted at the start index.
      */
     public splice(start: number, deleteCount: number, ...items: T[]): ReactiveArray<T> {
         return this.trackPropertyChanges("length", () => {
@@ -212,7 +208,7 @@ export class ReactiveArray<T> extends ReactiveObject {
     }
 
     /**
-     * Sorts the array, optionally using the given comparator to determin the sort order of each element, and returns 
+     * Sorts the array, optionally using the given comparator to determin the sort order of each element, and returns
      * a new ReactiveArray that represents the reorded items.
      * @param compareFunction If specified, determines the relative sort order between two given elements in the array.
      *                        If omitted, elements are sorted by the sort order of the numerical representation of their toString() unicode code points.
@@ -239,7 +235,7 @@ export class ReactiveArray<T> extends ReactiveObject {
     /**
      * Produces a new ReactiveArray from this array where only elements that passed the given predicate callback function from this array
      * are included in the new array.
-     * @param callback A function that, given an element, index, and the containing array, produces `true` if the value should be included 
+     * @param callback A function that, given an element, index, and the containing array, produces `true` if the value should be included
      *                 in the new array, or `false` if it should be omitted.
      * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
      */
@@ -254,7 +250,7 @@ export class ReactiveArray<T> extends ReactiveObject {
      * Returns the index of the first element in this array that equals the given value.
      * Returns -1 if no element in the array equals the given value.
      * @param value The value that the array should be searched for.
-     * @param fromIndex Optional. The lower-bound index that the search should begin from. 
+     * @param fromIndex Optional. The lower-bound index that the search should begin from.
      */
     public indexOf(value: T, fromIndex?: number): number {
         return this._array.indexOf(value, fromIndex);
@@ -338,7 +334,7 @@ export class ReactiveArray<T> extends ReactiveObject {
     /**
      * Gets a cold observable that resolves with the PropertyChangedEventArgs of any item in the array when
      * the specified property changes any item.
-     * @param property The name of the property that should be watched on each item in the array.  
+     * @param property The name of the property that should be watched on each item in the array.
      */
     public whenAnyItem<TProp>(property: (((vm: T) => TProp) | string)): Observable<PropertyChangedEventArgs<TProp>> {
         var derived = this.derived
@@ -405,7 +401,7 @@ export class ReactiveArray<T> extends ReactiveObject {
 
     /**
      * Gets a new builder object that can be used to create an observable that calculates a single value
-     * from this array. 
+     * from this array.
      */
     public get computed(): ComputedReactiveArrayBuilder<T> {
         return new ComputedReactiveArrayBuilder(this);
@@ -415,7 +411,7 @@ export class ReactiveArray<T> extends ReactiveObject {
      * Creates a new ReactiveArray from the given array.
      * @param arr The array that should be converted into a ReactiveArray.
      */
-    public static from<T>(arr: T[] | ReactiveArray<T>): ReactiveArray<T> {
+    public static from<T>(arr: T[]): ReactiveArray<T> {
         return new ReactiveArray<T>(arr);
     }
 
@@ -716,7 +712,7 @@ export class DerivedReactiveArrayBuilder<T> {
     /**
      * Sorts the child array whenever a change is piped from the parent array into it.
      * @param compareFunction Optional. A function that, given two values, returns the relative sort order of those two values.
-     *                        If omitted, the values will be sorted according to the default Array.prototype.sort() behavior.  
+     *                        If omitted, the values will be sorted according to the default Array.prototype.sort() behavior.
      */
     public sort(compareFunction?: (first: T, second: T) => number): DerivedReactiveArrayBuilder<T> {
         return this.addArray<T>(new SortTransform<T>(compareFunction));
@@ -762,7 +758,7 @@ export class ComputedReactiveArrayBuilder<T> {
     }
 
     /**
-     * Determines whether at least one value in the array passes the given predicate callback function whenever a change is observed in the array 
+     * Determines whether at least one value in the array passes the given predicate callback function whenever a change is observed in the array
      * and pipes the resulting values via the returned observable object.
      * @param callback A function that, given an element, index, and the containing array, produces a predicate value.
      * @param thisArg Optional. The value that should be used as `this` when executing the given callback function.
