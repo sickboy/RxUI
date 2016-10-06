@@ -1,9 +1,9 @@
-import {Observable, Subject, Subscription} from "rxjs/Rx";
-import {Scheduler} from "rxjs/Scheduler";
-import {PropertyChangedEventArgs} from "./events/property-changed-event-args";
-import {invokeCommand} from "./operator/invoke-command";
-import {ReactiveCommand} from "./reactive-command";
-import {IViewBindingHelper} from "./view";
+import { Observable, Subject, Subscription } from "rxjs/Rx";
+import { Scheduler } from "rxjs/Scheduler";
+import { PropertyChangedEventArgs } from "./events/property-changed-event-args";
+import { invokeCommand } from "./operator/invoke-command";
+import { ReactiveCommand } from "./reactive-command";
+import { IViewBindingHelper } from "./view";
 
 /**
  * Defines a class that represents a reactive object.
@@ -22,15 +22,32 @@ export class ReactiveObject {
     /**
      * Creates a new reactive object.
      */
-    constructor(obj?: Object) {
+    constructor(obj?: Object | Array<string>) {
         this._propertyChanged = new Subject<PropertyChangedEventArgs<any>>();
         this.__data = {};
-        if (obj && typeof obj === "object") {
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    this.set(key, obj[key]);
+        if (obj) {
+            if (Array.isArray(obj)) {
+                obj.forEach(n => this.setupProperty(n, null));
+            } else if (typeof obj === "object") {
+                for (var key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        var val = obj[key];
+                        this.setupProperty(key, val);
+                    }
                 }
             }
+        }
+    }
+
+    private setupProperty(name: string, val: any): void {
+        if (!this.hasOwnProperty(name)) {
+            Object.defineProperty(this, name, {
+                configurable: true,
+                enumerable: false,
+                get: () => this.get(name),
+                set: (v) => this.set(name, v)
+            });
+            this.set(name, val);
         }
     }
 
@@ -88,7 +105,7 @@ export class ReactiveObject {
         obj: TObj,
         property: string): T | any {
         var value = (<ReactiveObject><any>obj).__data[property];
-        if(typeof value === "undefined") {
+        if (typeof value === "undefined") {
             return null;
         } else {
             return value;

@@ -138,7 +138,7 @@ There are two major goals of this framework:
 1. To make asynchronous logic and it's presentation as simple as possible.
    - This is solved by encouraging minimal app state and encapsulated logic.
 2. To make that same logic 100% testable and reusable.
-   - This is solved by using Plain Old JavaScript Objects, and no global state.
+   - This is solved by using Plain Old TypeScript Objects, and no global state.
 
 We can solve both of these problems with Functional Reactive Programming.
 As stated in the name, FRP is functional, which is to say it prefers stateless code, and reactive, which means it deals with asynchronous events.
@@ -150,8 +150,13 @@ For example:
 // This object stores our state.
 // It can be whatever state we want. Maybe it is UI state, maybe it is logic state.
 class MyModel extends ReactiveObject {
-    get myProperty(): string { return this.get("myProperty"); }
-    set myProperty(value: string) { this.set("myProperty", value); }
+
+    myProperty: string;
+    
+    constructor() {
+        // We need to specify the properties that the object should setup setter and getters for.
+        super(["myProperty"]);
+    }
 }
 
 // Let's create a new model.
@@ -209,8 +214,11 @@ subscription.unsubscribe();
 
 // This is really simple in RxUI:
 class NumModel extends ReactiveObject {
-    get num(): number { return this.get("num"); }
-    set num(value: number) { this.set("num"); }
+    public num: number;
+    
+    constructor() {
+        super(["num"]);
+    }
 }
 
 var numModel = new NumModel();
