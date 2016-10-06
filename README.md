@@ -26,10 +26,19 @@ import {Observable} from "rxjs/Rx";
 // Example from ReactiveUI Documentation (http://docs.reactiveui.net/en/user-guide/commands/an-example.html)
 class LoginViewModel extends ReactiveObject {
     
+    public userName: string;
+    public password: string;
+
     public loginCommand: ReactiveCommand<boolean>;
     public resetCommand: ReactiveCommand<boolean>;
     
     constructor() {
+        
+        // Tell the ReactiveObject constructor that we want
+        // userName and password to be reactive properties that
+        // can be watched with whenAny and whenAnyValue. 
+        super(["userName", "password"]);
+
         // This is a strongly-typed observable
         // that notifies observers whether the user can login.
         var canLogin = this.whenAnyValue(
@@ -57,24 +66,6 @@ class LoginViewModel extends ReactiveObject {
     loginAsync(): Promise<boolean> {
         // Cool login logic   
     }
-    
-    // Helper getters and setters that provide us
-    // with good type-inference from TypeScript's compiler
-    public get userName(): string {
-        return this.get("userName");
-    }
-    
-    public set userName(val: string) {
-        return this.set("userName", val);
-    }
-    
-    public get password(): string {
-        this.get("password");
-    }
-    
-    public set password(val: string) {
-        return this.set("password", val);
-    }
 }
 ```
 
@@ -84,7 +75,7 @@ class LoginViewModel extends ReactiveObject {
 // If you decide to use ES5, you need to use traditional prototype-based inheritance.
 // Generally, you will not define your reactive objects with ES5, only consume them.
 var LoginViewModel = function() {
-    RxUI.ReactiveObject.call(this);
+    RxUI.ReactiveObject.call(this, ["userName", "password"]);
     var _this = this;
     var canLogin = this.whenAnyValue(
         "userName",
@@ -103,29 +94,8 @@ var LoginViewModel = function() {
             _this.password = "";
         });
 }
-
 LoginViewModel.prototype = Object.create(RxUI.ReactiveObject.prototype);
 LoginViewModel.prototype.constructor = LoginViewModel;
-Object.defineProperty(LoginViewModel.prototype, "userName", {
-    get: function() {
-        return this.get("userName");   
-    },
-    set: function(value) {
-        this.set("userName", value);
-    },
-    enumerable: true,
-    configurable: true
-});
-Object.defineProperty(LoginViewModel.prototype, "password", {
-    get: function() {
-        return this.get("password");   
-    },
-    set: function(value) {
-        this.set("password", value);
-    },
-    enumerable: true,
-    configurable: true
-});
 LoginViewModel.prototype.loginAsync = function() {
     // Cool login logic
 };
