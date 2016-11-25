@@ -607,13 +607,11 @@ describe("ReactiveObject", () => {
             obj.set("prop2", "prop2Value");
             obj.set("prop3", "prop3Value");
 
-            obj.whenAny<string, string, string, any>("prop1", "prop2", "prop3", (prop1, prop2, prop3) => {
-                return {
-                    prop1,
-                    prop2,
-                    prop3
-                };
-            }).skip(3).first().subscribe(e => {
+            obj.whenAny("prop1", "prop2", "prop3", (prop1, prop2, prop3) => ({
+                prop1,
+                prop2,
+                prop3
+            })).skip(3).first().subscribe(e => {
                 expect(e.prop1.propertyName).to.equal("prop1");
                 expect(e.prop2.propertyName).to.equal("prop2");
                 expect(e.prop3.propertyName).to.equal("prop3");
