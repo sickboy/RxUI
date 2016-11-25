@@ -58,9 +58,9 @@ module.exports = function(config) {
     // list of files / patterns to load in the browser
     files: [
       'node_modules/bluebird/js/browser/bluebird.js',
-      'node_modules/rxjs/bundles/Rx.umd.min.js',
+      'node_modules/rxjs/bundles/Rx.min.js',
       'node_modules/chai/chai.js',
-      'bundles/rxui.test.umd.js'
+      'bundles/rxui.test.js'
     ],
 
     client: {

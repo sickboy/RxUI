@@ -94,16 +94,35 @@ return /******/ (function(modules) { // webpackBootstrap
 	     * Creates a new reactive object.
 	     */
 	    function ReactiveObject(obj) {
+	        var _this = this;
 	        this._propertyChanged = new Rx_1.Subject();
 	        this.__data = {};
-	        if (obj && typeof obj === "object") {
-	            for (var key in obj) {
-	                if (obj.hasOwnProperty(key)) {
-	                    this.set(key, obj[key]);
+	        if (obj) {
+	            if (Array.isArray(obj)) {
+	                obj.forEach(function (n) { return _this.setupProperty(n, null); });
+	            }
+	            else if (typeof obj === "object") {
+	                for (var key in obj) {
+	                    if (obj.hasOwnProperty(key)) {
+	                        var val = obj[key];
+	                        this.setupProperty(key, val);
+	                    }
 	                }
 	            }
 	        }
 	    }
+	    ReactiveObject.prototype.setupProperty = function (name, val) {
+	        var _this = this;
+	        if (!this.hasOwnProperty(name)) {
+	            Object.defineProperty(this, name, {
+	                configurable: true,
+	                enumerable: false,
+	                get: function () { return _this.get(name); },
+	                set: function (v) { return _this.set(name, v); }
+	            });
+	            this.set(name, val);
+	        }
+	    };
 	    Object.defineProperty(ReactiveObject.prototype, "propertyChanged", {
 	        /**
 	         * Gets the observable that represents the stream of "propertyChanged" events from this object.

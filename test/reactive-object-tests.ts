@@ -35,6 +35,39 @@ describe("ReactiveObject", () => {
             expect(obj.get("float")).to.equal(14.4);
             expect(obj.get("obj")).to.equal(first.obj);
         });
+        it("should setup getters and setters for each of the properties in the given object", () => {
+            var obj: any = new ReactiveObject({
+                prop: "Value",
+                other: 10
+            });
+
+            expect(obj.prop).to.equal("Value");
+            expect(obj.other).to.equal(10);
+
+            var messages: string[] = [];
+            var sub = obj.whenAnyValue("prop").subscribe(v => messages.push(v));
+
+            obj.prop = "Other";
+
+            expect(messages.length).to.equal(2);
+            expect(messages[0]).to.equal("Value");
+            expect(messages[1]).to.equal("Other");
+        });
+        it("should setup getters and setters for each of the properties in the given array", () => {
+            var obj = new ReactiveObject(["prop", "other"]);
+
+            expect(obj.get("prop")).to.equal(null);
+            expect(obj.get("other")).to.equal(null);
+
+            var anyObj = <any>obj;
+            
+            expect(anyObj.prop).to.equal(null);
+            expect(anyObj.other).to.equal(null);
+
+            anyObj.prop = "Value";
+            expect(obj.get("prop")).to.equal("Value");
+            expect(anyObj.prop).to.equal("Value");
+        });
     });
     describe("#set()", () => {
         it("should change the value retrieved by .get()", () => {

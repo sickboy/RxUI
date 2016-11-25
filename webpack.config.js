@@ -3,9 +3,9 @@ var nodeExternals = require('webpack-node-externals');
 
 module.exports = {
     entry: {
-        'rxui.umd': './src/main',
-        'rxui.umd.min': './src/main',
-        'rxui.test.umd': './test/main'
+        'rxui': './src/main',
+        'rxui.min': './src/main',
+        'rxui.test': './test/main'
     },
     output: {
         filename: '[name].js',
